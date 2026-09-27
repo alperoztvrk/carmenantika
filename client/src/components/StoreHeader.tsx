@@ -5,7 +5,7 @@ import { Link, useLocation } from "wouter";
 import { StoreImage } from "@/components/StoreImage";
 import { money } from "@/components/ProductCard";
 import { goWithCurtain } from "@/components/PageCurtain";
-import { useCart } from "@/contexts/CartContext";
+import { holdLabel, useCart } from "@/contexts/CartContext";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
 
@@ -16,28 +16,36 @@ export function StoreHeader() {
   const [searchTerm, setSearchTerm] = useState("");
   const [location] = useLocation();
   const { items, totalCents, removeItem } = useCart();
-  const barRef = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const cartOpenRef = useRef(false);
+  const searchOpenRef = useRef(false);
+  const mobileOpenRef = useRef(false);
+  cartOpenRef.current = cartOpen;
+  searchOpenRef.current = searchOpen;
+  mobileOpenRef.current = mobileOpen;
 
   useEffect(() => {
-    document.documentElement.classList.toggle("cart-open", cartOpen);
-    return () => document.documentElement.classList.remove("cart-open");
-  }, [cartOpen]);
+    setCartOpen(false);
+    setSearchOpen(false);
+    setMobileOpen(false);
+  }, [location]);
 
   useEffect(() => {
-    const node = barRef.current;
-    if (!node) return;
-    const apply = () => document.documentElement.style.setProperty("--store-bar", `${Math.ceil(node.getBoundingClientRect().height)}px`);
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(node);
-    return () => observer.disconnect();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (cartOpenRef.current) setCartOpen(false);
+      else if (searchOpenRef.current) setSearchOpen(false);
+      else if (mobileOpenRef.current) setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const openCart = () => {
-    document.documentElement.classList.remove("scroll-down");
-    document.documentElement.classList.add("cart-open");
-    setCartOpen(true);
-  };
+  useEffect(() => {
+    if (!cartOpen) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [cartOpen]);
 
   const go = (path: string) => {
     setMobileOpen(false);
@@ -53,7 +61,6 @@ export function StoreHeader() {
 
   return (
     <>
-      <div className="store-bar" ref={barRef}>
       <div className="topline">
         <div className="container-carmen topline-inner">
           <span>Antalya'dan dünyanın her yerine</span>
@@ -83,7 +90,7 @@ export function StoreHeader() {
             <button className="icon-button mobile-toggle" type="button" aria-label="Menüyü aç" aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <button className={`cart-button ${cartOpen ? "active" : ""}`} type="button" onClick={openCart}>
+            <button className={`cart-button ${cartOpen ? "active" : ""}`} type="button" onClick={() => setCartOpen(true)}>
               <ShoppingBag size={15} strokeWidth={1.8} />
               <span className="cart-label">Çanta</span>
               <span className="cart-count">{items.length}</span>
@@ -132,24 +139,9 @@ export function StoreHeader() {
           )}
         </AnimatePresence>
       </header>
-      </div>
-      <AnimatePresence>
-        {cartOpen && (
-          <motion.div
-            className="cart-drawer-overlay"
-            onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-          >
-            <motion.aside
-              className="quick-cart-drawer"
-              initial={{ x: "108%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "108%" }}
-              transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.8 }}
-            >
+      {cartOpen && (
+          <div className="cart-drawer-overlay" onClick={() => setCartOpen(false)}>
+            <aside className="quick-cart-drawer" onClick={(event) => event.stopPropagation()}>
               <div className="quick-cart-head">
                 <div>
                   <span className="eyebrow">Carmen Antika</span>
@@ -166,28 +158,28 @@ export function StoreHeader() {
               ) : (
                 <>
                   <div className="quick-cart-items">
-                    {items.map((item, index) => (
-                      <motion.div className="quick-cart-item" key={item.id} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05, duration: 0.45, ease }}>
+                    {items.map((item) => (
+                      <div className="quick-cart-item" key={item.id}>
                         <StoreImage src={item.imageUrl} alt="" />
                         <div>
                           <strong>{item.name}</strong>
                           <span>{money(item.priceCents)}</span>
+                          <em>{holdLabel(item.expiresAt, now)}</em>
                         </div>
                         <button type="button" onClick={() => removeItem(item.id)} aria-label="Ürünü çıkar"><X size={14} /></button>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                   <div className="quick-cart-total">
                     <span>Toplam</span>
                     <strong>{money(totalCents)}</strong>
                   </div>
-                  <Link className="quick-cart-cta" href="/sepet" onClick={() => setCartOpen(false)}>Siparişi tamamla <ArrowRight size={16} /></Link>
+                  <button className="quick-cart-cta" type="button" onClick={() => go("/sepet")}>Siparişi tamamla <ArrowRight size={16} /></button>
                 </>
               )}
-            </motion.aside>
-          </motion.div>
+            </aside>
+          </div>
         )}
-      </AnimatePresence>
     </>
   );
 }

@@ -25,17 +25,17 @@ import { storagePut } from "./storage";
 import { getStripeClient } from "./stripe";
 
 const productFields = {
-  name: z.string().min(2).max(255),
-  category: z.string().min(2).max(100),
-  era: z.string().min(2).max(120),
-  priceCents: z.number().int().positive(),
-  shortDescription: z.string().min(5).max(500),
-  description: z.string().min(10),
-  condition: z.string().min(3),
-  dimensions: z.string().max(255).optional(),
-  imageUrl: z.string().min(1),
+  name: z.string(),
+  category: z.string(),
+  era: z.string(),
+  priceCents: z.number().int().min(0),
+  shortDescription: z.string(),
+  description: z.string(),
+  condition: z.string(),
+  dimensions: z.string().optional(),
+  imageUrl: z.string(),
   imageKey: z.string().optional(),
-  tag: z.string().max(100).optional(),
+  tag: z.string().optional(),
   isAvailable: z.number().int().min(0).max(1).optional(),
   isFeatured: z.number().int().min(0).max(1).optional(),
 };
@@ -91,7 +91,7 @@ export const appRouter = router({
       }),
     adminCreate: adminProcedure
       .input(z.object(productFields))
-      .mutation(({ input }) => createProduct({ ...input, slug: `${slugify(input.name)}-${Date.now().toString(36)}`, currency: "try", isAvailable: input.isAvailable ?? 1, isFeatured: input.isFeatured ?? 0 })),
+      .mutation(({ input }) => createProduct({ ...input, name: input.name.trim() || "İsimsiz parça", category: input.category.trim() || "Objeler", slug: `${slugify(input.name) || "parca"}-${Date.now().toString(36)}`, currency: "try", isAvailable: input.isAvailable ?? 1, isFeatured: input.isFeatured ?? 0 })),
     adminUpdate: adminProcedure
       .input(z.object({ id: z.number().int().positive(), data: z.object(productFields).partial() }))
       .mutation(({ input }) => updateProduct(input.id, input.data)),
@@ -116,7 +116,12 @@ export const appRouter = router({
         productIds: z.array(z.number().int().positive()).min(1).max(20),
       }))
       .mutation(async ({ input, ctx }) => {
-        const stripe = getStripeClient();
+        let stripe;
+        try {
+          stripe = getStripeClient();
+        } catch {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Ödeme sayfası bu bilgisayarda henüz bağlı değil." });
+        }
         const uniqueIds = Array.from(new Set(input.productIds));
         const availableProducts = await listProducts(false);
         const selected = availableProducts.filter((product) => uniqueIds.includes(product.id));

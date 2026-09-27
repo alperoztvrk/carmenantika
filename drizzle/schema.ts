@@ -39,6 +39,7 @@ export const orders = mysqlTable("orders", {
   userId: int("userId"),
   customerName: varchar("customerName", { length: 255 }).notNull(),
   customerEmail: varchar("customerEmail", { length: 320 }).notNull(),
+  customerPhone: varchar("customerPhone", { length: 40 }).notNull().default(""),
   shippingAddress: text("shippingAddress"),
   totalCents: int("totalCents").notNull(),
   currency: varchar("currency", { length: 3 }).default("try").notNull(),

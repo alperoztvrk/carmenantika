@@ -14,6 +14,7 @@ import {
   getOrderByNumber,
   getProductBySlug,
   listOrders,
+  markOrderPaid,
   listOrdersForUser,
   listProducts,
   makeOrderNumber,
@@ -110,18 +111,22 @@ export const appRouter = router({
   order: router({
     createCheckout: publicProcedure
       .input(z.object({
-        customerName: z.string().min(2).max(255),
-        customerEmail: z.string().email(),
-        shippingAddress: z.string().min(10).max(1000),
+        customerName: z.string().trim().max(255),
+        customerPhone: z.string().trim().max(40),
+        shippingAddress: z.string().trim().max(1000),
         productIds: z.array(z.number().int().positive()).min(1).max(20),
       }))
       .mutation(async ({ input, ctx }) => {
-        let stripe;
-        try {
-          stripe = getStripeClient();
-        } catch {
-          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Ödeme sayfası bu bilgisayarda henüz bağlı değil." });
+        if (input.customerName.length < 2) throw new TRPCError({ code: "BAD_REQUEST", message: "Ad soyad eksik." });
+        const phoneDigits = input.customerPhone.replace(/\D/g, "");
+        if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Telefon numarasını başında 0 ile, eksiksiz yaz." });
         }
+        if (input.shippingAddress.length < 8) throw new TRPCError({ code: "BAD_REQUEST", message: "Teslimat adresi eksik." });
+        if (!ENV.stripeSecretKey) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Stripe anahtarı yok. Proje klasöründeki .env dosyasına STRIPE_SECRET_KEY ekleyip sunucuyu yeniden başlat." });
+        }
+        const stripe = getStripeClient();
         const uniqueIds = Array.from(new Set(input.productIds));
         const availableProducts = await listProducts(false);
         const selected = availableProducts.filter((product) => uniqueIds.includes(product.id));
@@ -136,7 +141,8 @@ export const appRouter = router({
             orderNumber,
             userId: ctx.user?.id ?? null,
             customerName: input.customerName,
-            customerEmail: input.customerEmail,
+            customerEmail: "",
+            customerPhone: input.customerPhone,
             shippingAddress: input.shippingAddress,
             totalCents,
             currency: "try",
@@ -154,36 +160,77 @@ export const appRouter = router({
         if (!order) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Sipariş oluşturulamadı." });
         await updateProductsAvailability(selected.map((product) => product.id), 0);
 
-        const origin = ctx.req.headers.origin || `https://${ctx.req.headers.host}`;
+        const origin = ctx.req.headers.origin || `${ctx.req.protocol}://${ctx.req.headers.host}`;
         try {
           const session = await stripe.checkout.sessions.create({
             mode: "payment",
-            customer_email: input.customerEmail,
-            client_reference_id: String(ctx.user?.id ?? order.id),
+            client_reference_id: String(order.id),
             allow_promotion_codes: true,
             line_items: selected.map((product) => ({
               price_data: {
                 currency: "try",
-                product_data: { name: product.name, description: product.shortDescription },
+                product_data: { name: product.name, description: product.shortDescription || undefined },
                 unit_amount: product.priceCents,
               },
               quantity: 1,
             })),
             metadata: {
               order_id: String(order.id),
-              customer_email: input.customerEmail,
+              order_number: orderNumber,
               customer_name: input.customerName,
+              customer_phone: input.customerPhone,
             },
-            success_url: `${origin}/siparis-basarili?order=${orderNumber}`,
-            cancel_url: `${origin}/sepet`,
+            payment_intent_data: {
+              metadata: {
+                order_id: String(order.id),
+                order_number: orderNumber,
+                customer_phone: input.customerPhone,
+              },
+            },
+            success_url: `${origin}/siparis-basarili?order=${encodeURIComponent(orderNumber)}&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/sepet?iptal=${encodeURIComponent(orderNumber)}`,
           });
           await updateOrder(order.id, { stripeCheckoutSessionId: session.id });
           return { url: session.url, orderNumber };
         } catch (error) {
           await updateProductsAvailability(selected.map((product) => product.id), 1);
           await updateOrder(order.id, { status: "cancelled" });
-          throw error;
+          const detail = error instanceof Error ? error.message : "";
+          console.error("[Stripe] checkout failed", detail);
+          if (/invalid api key|expired api key/i.test(detail)) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Stripe anahtarı geçersiz. .env içindeki STRIPE_SECRET_KEY değerini kontrol edip sunucuyu yeniden başlat." });
+          }
+          if (/currency/i.test(detail)) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Stripe hesabında Türk lirası (TRY) açık değil. Dashboard’dan TRY’yi etkinleştir." });
+          }
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ödeme sayfası açılamadı. Biraz sonra tekrar dene." });
         }
+      }),
+    confirmPayment: publicProcedure
+      .input(z.object({ orderNumber: z.string().min(1), sessionId: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const order = await getOrderByNumber(input.orderNumber);
+        if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı." });
+        if (order.status === "paid") return order;
+        if (!ENV.stripeSecretKey) return order;
+        const session = await getStripeClient().checkout.sessions.retrieve(input.sessionId);
+        const matches = session.metadata?.order_id === String(order.id) || session.metadata?.order_number === order.orderNumber;
+        if (!matches) throw new TRPCError({ code: "BAD_REQUEST", message: "Ödeme kaydı bu siparişle eşleşmiyor." });
+        if (session.payment_status !== "paid") return order;
+        const intent = typeof session.payment_intent === "string" ? session.payment_intent : null;
+        const email = session.customer_details?.email ?? "";
+        const phone = session.customer_details?.phone || order.customerPhone;
+        await updateOrder(order.id, { customerEmail: email || order.customerEmail, customerPhone: phone });
+        return markOrderPaid(order.id, intent);
+      }),
+    cancelCheckout: publicProcedure
+      .input(z.object({ orderNumber: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const order = await getOrderByNumber(input.orderNumber);
+        if (!order || order.status !== "pending") return { ok: true };
+        await updateProductsAvailability(order.items.map((item) => item.productId), 1);
+        await updateOrder(order.id, { status: "cancelled" });
+        return { ok: true };
       }),
     byNumber: publicProcedure.input(z.object({ orderNumber: z.string().min(1) })).query(({ input }) => getOrderByNumber(input.orderNumber)),
     mine: protectedProcedure.query(({ ctx }) => listOrdersForUser(ctx.user.id)),

@@ -12,6 +12,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, removeLocalProduct, saveLocalProduct } from "./localCatalog";
+import { findLocalOrder, findLocalOrderByNumber, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -67,7 +68,10 @@ export async function getUserByOpenId(openId: string) {
 
 export async function listProducts(includeUnavailable = false) {
   const db = await getDb();
-  if (!db) return readLocalProducts(includeUnavailable);
+  if (!db) {
+    releaseStaleLocalOrders();
+    return readLocalProducts(includeUnavailable);
+  }
   const query = db.select().from(products).orderBy(desc(products.createdAt));
   if (includeUnavailable) return query;
   return db.select().from(products).where(eq(products.isAvailable, 1)).orderBy(desc(products.createdAt));
@@ -120,14 +124,25 @@ export async function deleteProduct(id: number) {
 }
 
 export async function updateProductsAvailability(ids: number[], isAvailable: number) {
+  if (ids.length === 0) return;
   const db = await getDb();
-  if (!db || ids.length === 0) return;
+  if (!db) {
+    ids.forEach((id) => patchLocalProduct(id, { isAvailable }));
+    return;
+  }
   await db.update(products).set({ isAvailable, updatedAt: new Date() }).where(inArray(products.id, ids));
+}
+
+async function withOrderItems<T extends { id: number }>(rows: T[]) {
+  const db = await getDb();
+  if (!db || rows.length === 0) return rows.map((row) => ({ ...row, items: [] as Array<typeof orderItems.$inferSelect> }));
+  const items = await db.select().from(orderItems).where(inArray(orderItems.orderId, rows.map((row) => row.id)));
+  return rows.map((row) => ({ ...row, items: items.filter((item) => item.orderId === row.id) }));
 }
 
 export async function createOrder(input: InsertOrder, items: InsertOrderItem[]) {
   const db = await getDb();
-  if (!db) throw new Error("Database is not available");
+  if (!db) return saveLocalOrder(input, items);
   const result = await db.insert(orders).values(input);
   const orderId = Number((result as unknown as { insertId: number }).insertId);
   if (items.length > 0) {
@@ -138,14 +153,14 @@ export async function createOrder(input: InsertOrder, items: InsertOrderItem[]) 
 
 export async function updateOrder(id: number, input: Partial<InsertOrder>) {
   const db = await getDb();
-  if (!db) throw new Error("Database is not available");
+  if (!db) return patchLocalOrder(id, input);
   await db.update(orders).set({ ...input, updatedAt: new Date() }).where(eq(orders.id, id));
   return getOrderById(id);
 }
 
 export async function getOrderById(id: number) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return findLocalOrder(id);
   const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!result[0]) return undefined;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
@@ -154,7 +169,7 @@ export async function getOrderById(id: number) {
 
 export async function getOrderByNumber(orderNumber: string) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return findLocalOrderByNumber(orderNumber);
   const result = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
   if (!result[0]) return undefined;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, result[0].id));
@@ -163,7 +178,7 @@ export async function getOrderByNumber(orderNumber: string) {
 
 export async function markOrderPaid(orderId: number, paymentIntentId: string | null) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return markLocalOrderPaid(orderId, paymentIntentId);
   const order = await getOrderById(orderId);
   if (!order) return undefined;
   await db.update(orders).set({ status: "paid", stripePaymentIntentId: paymentIntentId, updatedAt: new Date() }).where(eq(orders.id, orderId));
@@ -175,14 +190,16 @@ export async function markOrderPaid(orderId: number, paymentIntentId: string | n
 
 export async function listOrdersForUser(userId: number) {
   const db = await getDb();
-  if (!db) return [];
-  return db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt));
+  if (!db) return readLocalOrders(userId);
+  const rows = await db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt));
+  return withOrderItems(rows);
 }
 
 export async function listOrders() {
   const db = await getDb();
-  if (!db) return [];
-  return db.select().from(orders).orderBy(desc(orders.createdAt));
+  if (!db) return readLocalOrders();
+  const rows = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  return withOrderItems(rows);
 }
 
 export function makeOrderNumber() {

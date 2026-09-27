@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Menu, Search, ShoppingBag, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { StoreImage } from "@/components/StoreImage";
 import { money } from "@/components/ProductCard";
@@ -16,6 +16,28 @@ export function StoreHeader() {
   const [searchTerm, setSearchTerm] = useState("");
   const [location] = useLocation();
   const { items, totalCents, removeItem } = useCart();
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("cart-open", cartOpen);
+    return () => document.documentElement.classList.remove("cart-open");
+  }, [cartOpen]);
+
+  useEffect(() => {
+    const node = barRef.current;
+    if (!node) return;
+    const apply = () => document.documentElement.style.setProperty("--store-bar", `${Math.ceil(node.getBoundingClientRect().height)}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const openCart = () => {
+    document.documentElement.classList.remove("scroll-down");
+    document.documentElement.classList.add("cart-open");
+    setCartOpen(true);
+  };
 
   const go = (path: string) => {
     setMobileOpen(false);
@@ -31,6 +53,7 @@ export function StoreHeader() {
 
   return (
     <>
+      <div className="store-bar" ref={barRef}>
       <div className="topline">
         <div className="container-carmen topline-inner">
           <span>Antalya'dan dünyanın her yerine</span>
@@ -60,7 +83,7 @@ export function StoreHeader() {
             <button className="icon-button mobile-toggle" type="button" aria-label="Menüyü aç" aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <button className={`cart-button ${cartOpen ? "active" : ""}`} type="button" onClick={() => setCartOpen(true)}>
+            <button className={`cart-button ${cartOpen ? "active" : ""}`} type="button" onClick={openCart}>
               <ShoppingBag size={15} strokeWidth={1.8} />
               <span className="cart-label">Çanta</span>
               <span className="cart-count">{items.length}</span>
@@ -109,10 +132,11 @@ export function StoreHeader() {
           )}
         </AnimatePresence>
       </header>
+      </div>
       <AnimatePresence>
         {cartOpen && (
           <motion.div
-            className="cart-drawer-overlay open"
+            className="cart-drawer-overlay"
             onClick={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

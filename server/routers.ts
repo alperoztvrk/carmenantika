@@ -10,6 +10,7 @@ import {
   archiveProduct,
   createOrder,
   createProduct,
+  deleteProduct,
   getOrderByNumber,
   getProductBySlug,
   listOrders,
@@ -97,6 +98,13 @@ export const appRouter = router({
     adminArchive: adminProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(({ input }) => archiveProduct(input.id)),
+    adminDelete: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        const removed = await deleteProduct(input.id);
+        if (!removed) throw new TRPCError({ code: "NOT_FOUND", message: "Ürün bulunamadı." });
+        return { id: input.id };
+      }),
   }),
 
   order: router({

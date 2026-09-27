@@ -11,7 +11,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
-import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, saveLocalProduct } from "./localCatalog";
+import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, removeLocalProduct, saveLocalProduct } from "./localCatalog";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -110,6 +110,13 @@ export async function updateProduct(id: number, input: Partial<InsertProduct>) {
 
 export async function archiveProduct(id: number) {
   return updateProduct(id, { isAvailable: 0 });
+}
+
+export async function deleteProduct(id: number) {
+  const db = await getDb();
+  if (!db) return removeLocalProduct(id);
+  await db.delete(products).where(eq(products.id, id));
+  return { id };
 }
 
 export async function updateProductsAvailability(ids: number[], isAvailable: number) {

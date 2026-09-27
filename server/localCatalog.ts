@@ -169,3 +169,10 @@ export function patchLocalProduct(id: number, input: Partial<InsertProduct>) {
   Object.assign(current, input, { updatedAt: new Date() });
   return current;
 }
+
+export function removeLocalProduct(id: number) {
+  const index = memoryProducts.findIndex((product) => product.id === id);
+  if (index < 0) return undefined;
+  const [removed] = memoryProducts.splice(index, 1);
+  return removed;
+}

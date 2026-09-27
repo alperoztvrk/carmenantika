@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-
-type Phase = "idle" | "covering" | "revealing";
 
 let openWithCurtain: ((href: string) => void) | null = null;
 
@@ -10,49 +8,19 @@ export function goWithCurtain(href: string) {
   else window.location.assign(href);
 }
 
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 export function PageCurtain() {
   const [, navigate] = useLocation();
-  const [phase, setPhase] = useState<Phase>("idle");
-  const busy = useRef(false);
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
 
   useEffect(() => {
-    const timers = new Set<number>();
-    const later = (fn: () => void, ms: number) => {
-      const id = window.setTimeout(() => {
-        timers.delete(id);
-        fn();
-      }, ms);
-      timers.add(id);
-    };
-    const release = () => {
-      busy.current = false;
-      setPhase("idle");
-    };
     const start = (href: string) => {
       const nextUrl = new URL(href, window.location.origin);
       const next = `${nextUrl.pathname}${nextUrl.search}`;
       const current = `${window.location.pathname}${window.location.search}`;
       if (next === current) return;
-      if (prefersReducedMotion()) {
-        navigateRef.current(next);
-        window.scrollTo(0, 0);
-        return;
-      }
-      if (busy.current) return;
-      busy.current = true;
-      setPhase("covering");
-      later(() => {
-        navigateRef.current(next);
-        window.scrollTo(0, 0);
-        setPhase("revealing");
-        later(release, 820);
-      }, 520);
+      navigateRef.current(next);
+      window.scrollTo(0, 0);
     };
 
     openWithCurtain = start;
@@ -79,17 +47,10 @@ export function PageCurtain() {
 
     document.addEventListener("click", onClick, true);
     return () => {
-      timers.forEach((id) => window.clearTimeout(id));
       document.removeEventListener("click", onClick, true);
       if (openWithCurtain === start) openWithCurtain = null;
     };
   }, []);
 
-  return (
-    <div className={`page-curtain ${phase}`} aria-hidden={phase === "idle"}>
-      <span className="page-curtain-panel page-curtain-top" />
-      <span className="page-curtain-panel page-curtain-bottom" />
-      <em className="page-curtain-mark">Carmen Antika</em>
-    </div>
-  );
+  return null;
 }

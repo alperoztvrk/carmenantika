@@ -1,7 +1,9 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { ENV } from "./_core/env";
+import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
@@ -57,6 +59,19 @@ export const appRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return { success: true } as const;
+    }),
+    localStatus: publicProcedure.query(() => {
+      const enabled = !ENV.isProduction;
+      return { enabled, passwordHint: enabled && !process.env.LOCAL_ADMIN_PASSWORD ? "carmen" : null };
+    }),
+    localLogin: publicProcedure.input(z.object({ password: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {
+      if (ENV.isProduction) throw new TRPCError({ code: "FORBIDDEN", message: "Yerel giriş yalnızca geliştirme ortamında açık." });
+      const expected = process.env.LOCAL_ADMIN_PASSWORD || "carmen";
+      if (input.password !== expected) throw new TRPCError({ code: "UNAUTHORIZED", message: "Şifre yanlış." });
+      const sessionToken = await sdk.createSessionToken("local-admin", { name: "Carmen", expiresInMs: ONE_YEAR_MS });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
       return { success: true } as const;
     }),
   }),

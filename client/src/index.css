@@ -351,7 +351,7 @@ html.scroll-down, html { --reveal-y: 44px; }
 .detail-info div { border-bottom: 1px solid var(--border); padding-bottom: 15px; }
 .detail-info span { color: var(--terracotta); font-size: 10px; letter-spacing: .13em; text-transform: uppercase; font-weight: 700; }
 .detail-info p { margin: 8px 0 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; }
-.story-page-hero { min-height: 100svh; display: flex; align-items: center; box-sizing: border-box; padding: 120px 0 80px; background: var(--terracotta); color: var(--paper); }
+.story-page-hero { padding: 115px 0 80px; background: var(--terracotta); color: var(--paper); }
 .story-page-intro { display: grid; grid-template-columns: 1.3fr .7fr; gap: 70px; align-items: end; }
 .story-page-intro h1 { margin: 22px 0 0; font: 500 clamp(75px, 12vw, 165px)/.74 "Cormorant Garamond", Georgia, serif; letter-spacing: -.09em; }
 .story-page-intro h1 em { color: #f3cc9d; }
@@ -418,6 +418,15 @@ html.scroll-down, html { --reveal-y: 44px; }
 .order-row span { margin-top: 5px; color: var(--muted-foreground); font-size: 10px; }
 .order-row b { color: var(--terracotta); font-size: 12px; }
 .order-row em { color: var(--moss); font-size: 10px; font-style: normal; letter-spacing: .1em; text-transform: uppercase; }
+.admin-login { display: grid; place-items: center; min-height: 72vh; padding: 80px 20px; }
+.admin-login-card { width: min(100%, 460px); display: grid; gap: 14px; background: var(--paper); border: 1px solid var(--border); padding: 36px 32px 32px; color: var(--terracotta); }
+.admin-login-card h1 { margin: 0; color: var(--ink); font: 500 64px/.8 "Cormorant Garamond", Georgia, serif; letter-spacing: -.06em; }
+.admin-login-card p { margin: 0; color: var(--muted-foreground); line-height: 1.6; }
+.admin-login-card form { display: grid; gap: 14px; margin-top: 8px; }
+.admin-login-card label { display: grid; gap: 7px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+.admin-login-card input { width: 100%; border: 1px solid var(--border); background: var(--parchment); padding: 12px; color: var(--ink); font: 15px/1.4 "DM Sans", sans-serif; letter-spacing: 0; text-transform: none; }
+.admin-login-card small { color: var(--muted-foreground); font-size: 12px; letter-spacing: 0; text-transform: none; }
+.admin-login-card small strong { color: var(--terracotta); }
 .admin-page { padding: 85px 0 120px; background: var(--paper); }
 .admin-heading { display: flex; justify-content: space-between; align-items: end; gap: 30px; margin-bottom: 55px; }
 .admin-heading h1 { margin: 20px 0 15px; color: var(--ink); font: 500 clamp(65px, 9vw, 120px)/.75 "Cormorant Garamond", Georgia, serif; letter-spacing: -.08em; }

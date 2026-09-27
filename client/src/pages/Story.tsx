@@ -1,30 +1,47 @@
+import { motion } from "framer-motion";
 import { ArrowRight, Compass, Heart, Search, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { StoreLayout } from "@/components/StoreLayout";
 
+const ease = [0.22, 0.8, 0.24, 1] as const;
+
+function StoryStage({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+  return (
+    <motion.section
+      className={className}
+      initial={{ opacity: 0, y: 42, filter: "blur(8px)" }}
+      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      viewport={{ once: true, amount: 0.35, margin: "0px 0px -12% 0px" }}
+      transition={{ duration: 0.75, delay, ease }}
+    >
+      {children}
+    </motion.section>
+  );
+}
+
 export default function Story() {
   return (
     <StoreLayout>
-      <section className="story-page-hero scroll-stage">
+      <section className="story-page-hero enter-from-bar">
         <div className="container-carmen story-page-intro">
-          <div>
+          <div className="from-bar-copy">
             <span className="eyebrow">Carmen Antika / Hikâyemiz</span>
             <h1 className="split-lines">
               <span>Eşya değil,</span>
               <span><em>iz</em> biriktiriyoruz.</span>
             </h1>
+            <p>
+              Antalya'nın farklı köşelerindeki bit pazarlarını, eski dükkânları ve unutulmuş çekmeceleri geziyoruz. Bazen bir radyo, bazen kurmalı bir oyuncak, bazen de ne işe yaradığını bilmediğimiz bir parça buluyoruz.
+            </p>
           </div>
-          <p>
-            Antalya'nın farklı köşelerindeki bit pazarlarını, eski dükkânları ve unutulmuş çekmeceleri geziyoruz. Bazen bir radyo, bazen kurmalı bir oyuncak, bazen de ne işe yaradığını bilmediğimiz bir parça buluyoruz.
-          </p>
         </div>
       </section>
 
-      <section className="story-page-grid container-carmen scroll-stage">
-        <div className="story-page-image motion-clip">
+      <StoryStage className="story-page-grid container-carmen">
+        <div className="story-page-image">
           <img src="/photos/story-market.jpg" alt="Bit pazarında bulunan eski vazolar ve küçük objeler" />
         </div>
-        <div className="story-page-copy motion-stagger">
+        <div className="story-page-copy">
           <span className="eyebrow">01 / Bulmak</span>
           <h2 className="split-lines">
             <span>Gözden kaçanı</span>
@@ -33,17 +50,17 @@ export default function Story() {
           <p>
             Bizim için iyi bir parça kusursuz değil; kendinden önceki hayatını biraz belli eden parça. Tezgâhın kalabalığında, eski bir dükkânın rafında veya bir evin taşınma kolisinde karşılaşırız.
           </p>
-          <div className="story-pillars motion-stagger">
+          <div className="story-pillars">
             <span><Compass size={16} /> Şehrin içinden</span>
             <span><Search size={16} /> Araştırılmış</span>
             <span><Heart size={16} /> Sevgiyle seçilmiş</span>
           </div>
         </div>
-      </section>
+      </StoryStage>
 
-      <section className="story-chapter scroll-stage">
+      <StoryStage className="story-chapter" delay={0.08}>
         <div className="container-carmen story-chapter-grid">
-          <div className="story-chapter-copy motion-stagger">
+          <div className="story-chapter-copy">
             <span className="eyebrow">02 / Seçmek</span>
             <h2 className="split-lines">
               <span>Her iz</span>
@@ -55,28 +72,28 @@ export default function Story() {
             <p>Parça buraya geldiğinde temizlenir, kondisyonu yazılır ve tek olduğu için bir daha aynı rafta durmaz.</p>
           </div>
           <div className="story-chapter-photos">
-            <figure className="motion-clip story-float">
+            <figure className="story-float">
               <img src="/photos/radio.jpg" alt="Eski bir masa radyosu" />
               <figcaption>Radyo, Offenburg</figcaption>
             </figure>
-            <figure className="motion-clip story-float story-float-late">
+            <figure className="story-float story-float-late">
               <img src="/photos/typewriter.jpg" alt="Eski bir daktilonun tuşları" />
               <figcaption>Mektupluk tuşlar</figcaption>
             </figure>
           </div>
         </div>
-      </section>
+      </StoryStage>
 
-      <section className="story-quote-band scroll-stage">
-        <div className="container-carmen motion-stagger">
+      <StoryStage className="story-quote-band" delay={0.06}>
+        <div className="container-carmen">
           <Sparkles size={20} />
           <blockquote>“İyi bulunan bir şey, sahibini de bulur.”</blockquote>
           <span>Carmen'in defterinden</span>
         </div>
-      </section>
+      </StoryStage>
 
-      <section className="story-page-cta scroll-stage">
-        <div className="container-carmen motion-stagger">
+      <StoryStage className="story-page-cta">
+        <div className="container-carmen">
           <span className="eyebrow">Sıradaki hikâye</span>
           <h2 className="split-lines">
             <span>Belki bugün</span>
@@ -84,7 +101,7 @@ export default function Story() {
           </h2>
           <Link className="primary-cta" href="/koleksiyon">Koleksiyona git <ArrowRight size={15} /></Link>
         </div>
-      </section>
+      </StoryStage>
     </StoreLayout>
   );
 }

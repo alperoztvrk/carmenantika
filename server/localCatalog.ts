@@ -1,4 +1,4 @@
-import type { Product } from "../drizzle/schema";
+import type { InsertProduct, Product } from "../drizzle/schema";
 
 const stamp = new Date("2024-09-01T10:00:00.000Z");
 
@@ -122,6 +122,50 @@ export const localProducts: Product[] = [
   }),
 ];
 
+const memoryProducts: Product[] = localProducts.map((product) => ({ ...product }));
+
+export function readLocalProducts(includeUnavailable = false) {
+  const list = [...memoryProducts].sort((left, right) => right.id - left.id);
+  return includeUnavailable ? list : list.filter((product) => product.isAvailable === 1);
+}
+
 export function findLocalProduct(slug: string) {
-  return localProducts.find((product) => product.slug === slug);
+  return memoryProducts.find((product) => product.slug === slug);
+}
+
+export function findLocalProductById(id: number) {
+  return memoryProducts.find((product) => product.id === id);
+}
+
+export function saveLocalProduct(input: InsertProduct) {
+  const now = new Date();
+  const product: Product = {
+    id: Math.max(9000, ...memoryProducts.map((item) => item.id)) + 1,
+    slug: input.slug,
+    name: input.name,
+    category: input.category,
+    era: input.era,
+    priceCents: input.priceCents,
+    currency: input.currency ?? "try",
+    shortDescription: input.shortDescription,
+    description: input.description,
+    condition: input.condition,
+    dimensions: input.dimensions ?? null,
+    imageUrl: input.imageUrl,
+    imageKey: input.imageKey ?? null,
+    tag: input.tag ?? null,
+    isAvailable: input.isAvailable ?? 1,
+    isFeatured: input.isFeatured ?? 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  memoryProducts.unshift(product);
+  return product;
+}
+
+export function patchLocalProduct(id: number, input: Partial<InsertProduct>) {
+  const current = memoryProducts.find((product) => product.id === id);
+  if (!current) return undefined;
+  Object.assign(current, input, { updatedAt: new Date() });
+  return current;
 }

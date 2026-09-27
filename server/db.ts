@@ -11,7 +11,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
-import { findLocalProduct, localProducts } from "./localCatalog";
+import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, saveLocalProduct } from "./localCatalog";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -67,7 +67,7 @@ export async function getUserByOpenId(openId: string) {
 
 export async function listProducts(includeUnavailable = false) {
   const db = await getDb();
-  if (!db) return includeUnavailable ? localProducts : localProducts.filter((product) => product.isAvailable === 1);
+  if (!db) return readLocalProducts(includeUnavailable);
   const query = db.select().from(products).orderBy(desc(products.createdAt));
   if (includeUnavailable) return query;
   return db.select().from(products).where(eq(products.isAvailable, 1)).orderBy(desc(products.createdAt));
@@ -82,7 +82,7 @@ export async function getProductBySlug(slug: string) {
 
 export async function getProductById(id: number) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return findLocalProductById(id);
   const result = await db.select().from(products).where(eq(products.id, id)).limit(1);
   return result[0];
 }
@@ -95,7 +95,7 @@ export async function getProductsByIds(ids: number[]) {
 
 export async function createProduct(input: InsertProduct) {
   const db = await getDb();
-  if (!db) throw new Error("Database is not available");
+  if (!db) return saveLocalProduct(input);
   const result = await db.insert(products).values(input);
   const id = Number((result as unknown as { insertId: number }).insertId);
   return getProductById(id);
@@ -103,7 +103,7 @@ export async function createProduct(input: InsertProduct) {
 
 export async function updateProduct(id: number, input: Partial<InsertProduct>) {
   const db = await getDb();
-  if (!db) throw new Error("Database is not available");
+  if (!db) return patchLocalProduct(id, input);
   await db.update(products).set({ ...input, updatedAt: new Date() }).where(eq(products.id, id));
   return getProductById(id);
 }

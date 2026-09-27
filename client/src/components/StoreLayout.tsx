@@ -1,10 +1,27 @@
+import { createContext, useContext } from "react";
 import { StoreFooter } from "@/components/StoreFooter";
 import { StoreHeader } from "@/components/StoreHeader";
+import { useReveal } from "@/hooks/useReveal";
 import { useScrollMotion } from "@/hooks/useScrollMotion";
-import { useLocation } from "wouter";
+const LayoutFrame = createContext(false);
 
 export function StoreLayout({ children }: { children: React.ReactNode }) {
+  const framed = useContext(LayoutFrame);
+  if (framed) return <>{children}</>;
+  return <StoreFrame>{children}</StoreFrame>;
+}
+
+function StoreFrame({ children }: { children: React.ReactNode }) {
   useScrollMotion();
-  const [location] = useLocation();
-  return <div className="site-shell paper-texture"><StoreHeader /><main key={location} className="page-transition">{children}</main><StoreFooter /></div>;
+  useReveal();
+
+  return (
+    <LayoutFrame.Provider value={true}>
+      <div className="site-shell paper-texture">
+        <StoreHeader />
+        <main className="page-stage">{children}</main>
+        <StoreFooter />
+      </div>
+    </LayoutFrame.Provider>
+  );
 }

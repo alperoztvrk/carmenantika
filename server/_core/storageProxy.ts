@@ -1,6 +1,30 @@
 import type { Express } from "express";
 import { ENV } from "./env";
 
+const LOCAL_POOL = [
+  "/photos/radio.jpg",
+  "/photos/camera.jpg",
+  "/photos/polaroid.jpg",
+  "/photos/toy.jpg",
+  "/photos/frames.jpg",
+  "/photos/typewriter.jpg",
+  "/photos/collection.jpg",
+  "/photos/story-market.jpg",
+];
+
+const KNOWN_PHOTOS: Record<string, string> = {
+  "flea-stall_64c3f112.jpg": "/photos/hero-stall.jpg",
+  "market-objects_9b5b96e4.jpeg": "/photos/story-market.jpg",
+};
+
+function localPhotoFor(key: string) {
+  const file = decodeURIComponent(key.split("/").pop() ?? key);
+  if (KNOWN_PHOTOS[file]) return KNOWN_PHOTOS[file];
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) hash = (hash * 33 + key.charCodeAt(index)) >>> 0;
+  return LOCAL_POOL[hash % LOCAL_POOL.length];
+}
+
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
     const key = (req.params as Record<string, string>)[0];
@@ -10,7 +34,7 @@ export function registerStorageProxy(app: Express) {
     }
 
     if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
+      res.redirect(302, localPhotoFor(key));
       return;
     }
 
@@ -28,7 +52,7 @@ export function registerStorageProxy(app: Express) {
       if (!forgeResp.ok) {
         const body = await forgeResp.text().catch(() => "");
         console.error(`[StorageProxy] forge error: ${forgeResp.status} ${body}`);
-        res.status(502).send("Storage backend error");
+        res.redirect(302, localPhotoFor(key));
         return;
       }
 
@@ -42,7 +66,7 @@ export function registerStorageProxy(app: Express) {
       res.redirect(307, url);
     } catch (err) {
       console.error("[StorageProxy] failed:", err);
-      res.status(502).send("Storage proxy error");
+      res.redirect(302, localPhotoFor(key));
     }
   });
 }

@@ -10,7 +10,9 @@ import Orders from "@/pages/Orders";
 import ProductDetail from "@/pages/ProductDetail";
 import Story from "@/pages/Story";
 import { Route, Switch } from "wouter";
+import { StoreLayout } from "./components/StoreLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { PageCurtain } from "./components/PageCurtain";
 import { Providers } from "./components/Providers";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -42,7 +44,8 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
-          <Providers><Router /></Providers>
+          <PageCurtain />
+          <Providers><StoreLayout><Router /></StoreLayout></Providers>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

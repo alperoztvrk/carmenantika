@@ -11,6 +11,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { findLocalProduct, localProducts } from "./localCatalog";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -66,7 +67,7 @@ export async function getUserByOpenId(openId: string) {
 
 export async function listProducts(includeUnavailable = false) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) return includeUnavailable ? localProducts : localProducts.filter((product) => product.isAvailable === 1);
   const query = db.select().from(products).orderBy(desc(products.createdAt));
   if (includeUnavailable) return query;
   return db.select().from(products).where(eq(products.isAvailable, 1)).orderBy(desc(products.createdAt));
@@ -74,7 +75,7 @@ export async function listProducts(includeUnavailable = false) {
 
 export async function getProductBySlug(slug: string) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return findLocalProduct(slug);
   const result = await db.select().from(products).where(eq(products.slug, slug)).limit(1);
   return result[0];
 }

@@ -1,0 +1,127 @@
+import type { Product } from "../drizzle/schema";
+
+const stamp = new Date("2024-09-01T10:00:00.000Z");
+
+function piece(input: Omit<Product, "currency" | "imageKey" | "isAvailable" | "isFeatured" | "createdAt" | "updatedAt" | "dimensions" | "tag"> & Partial<Product>): Product {
+  return {
+    currency: "try",
+    imageKey: null,
+    dimensions: null,
+    tag: null,
+    isAvailable: 1,
+    isFeatured: 0,
+    createdAt: stamp,
+    updatedAt: stamp,
+    ...input,
+  };
+}
+
+/** Shown when the shop is opened without a database, so local VS Code runs still have a collection. */
+export const localProducts: Product[] = [
+  piece({
+    id: 9001,
+    slug: "national-cep-radyosu",
+    name: "National Cep Radyosu",
+    category: "Radyolar",
+    era: "1970'ler",
+    priceCents: 245000,
+    shortDescription: "Krem kasa, sıcak bir cızırtı ve hâlâ dönen ibre.",
+    description: "Bit pazarında, bir çekmecenin dibinden çıktı. Kadranı tam, hoparlörü yumuşak. Tek parça.",
+    condition: "Çalışır durumda. Kasada dönemine ait küçük izler var.",
+    imageUrl: "/photos/radio.jpg",
+    tag: "Bu hafta",
+    isFeatured: 1,
+  }),
+  piece({
+    id: 9002,
+    slug: "ansco-kutu-kamera",
+    name: "Ansco Kutu Kamera",
+    category: "Kameralar",
+    era: "1903",
+    priceCents: 390000,
+    shortDescription: "Körüklü değil, kutu kadar dürüst bir makine.",
+    description: "Yüzyılın başından kalma bir kutu kamera. Objektifi yerinde, derisi yıpranmış ama bütün.",
+    condition: "Dekoratif ve sağlam. Orijinal deri izleri korunmuş.",
+    imageUrl: "/photos/camera.jpg",
+    tag: "Tek",
+  }),
+  piece({
+    id: 9003,
+    slug: "polaroid-aninda",
+    name: "Anında Çeken Polaroid",
+    category: "Kameralar",
+    era: "1970'ler",
+    priceCents: 320000,
+    shortDescription: "Bir kare, bir bekleme, bir yaz akşamı.",
+    description: "Gövdesi temiz, kayışı orijinal. Anı biriktirmeyi sevenler için.",
+    condition: "Dış yüzeyi çok iyi. Film yuvası eksiksiz.",
+    imageUrl: "/photos/polaroid.jpg",
+  }),
+  piece({
+    id: 9004,
+    slug: "kurmali-oyuncak-secisi",
+    name: "Kurmalı Oyuncak Seçkisi",
+    category: "Oyuncaklar",
+    era: "1950–70",
+    priceCents: 180000,
+    shortDescription: "Teneke, tahta ve biraz toz. Hepsi tek.",
+    description: "Bir tezgâhta yan yana duran küçük kurmalı parçalar. Her birinin yayı hâlâ haber veriyor.",
+    condition: "Oyun izleri görünür. Eksik parça yok.",
+    imageUrl: "/photos/toy.jpg",
+    tag: "Set",
+  }),
+  piece({
+    id: 9005,
+    slug: "cam-golgeler",
+    name: "Cam Gölgeler",
+    category: "Objeler",
+    era: "Erken 20. yy",
+    priceCents: 210000,
+    shortDescription: "Işığı kesen, masayı değiştiren küçük camlar.",
+    description: "Pazar tezgâhında gölge düşüren bir grup eski cam. Her biri ayrı bir evden.",
+    condition: "Çatlak yok. Dip kısımlarında kullanım izi var.",
+    imageUrl: "/photos/frames.jpg",
+  }),
+  piece({
+    id: 9006,
+    slug: "seyahat-daktilosu",
+    name: "Seyahat Daktilosu",
+    category: "Objeler",
+    era: "1960'lar",
+    priceCents: 275000,
+    shortDescription: "Tuşları hâlâ mektup yazmak istiyor.",
+    description: "Kompakt bir seyahat daktilosu. Şeridi kurumuş olabilir, mekanizması akıyor.",
+    condition: "Tuşlar tam. Kasada hafif patina.",
+    imageUrl: "/photos/typewriter.jpg",
+    tag: "Mektupluk",
+  }),
+  piece({
+    id: 9007,
+    slug: "radyo-tezgahi",
+    name: "Radyo Tezgâhı",
+    category: "Radyolar",
+    era: "1930–60",
+    priceCents: 460000,
+    shortDescription: "Bir dükkânın bütün sesi, tek karede.",
+    description: "Üst üste dizilmiş ahşap radyolar. İçlerinden biri senin masana gelir.",
+    condition: "Vitrin parçası. Seçilen gövde ayrıca not edilir.",
+    imageUrl: "/photos/collection.jpg",
+    isFeatured: 1,
+  }),
+  piece({
+    id: 9008,
+    slug: "pazar-vazolari",
+    name: "Pazar Vazoları",
+    category: "Objeler",
+    era: "Karışık",
+    priceCents: 150000,
+    shortDescription: "Tezgâhın en kalabalık, en sessiz köşesi.",
+    description: "Bit pazarında yan yana duran eski vazolar. Sırları farklı, hikâyeleri ortak.",
+    condition: "Tek parça seçilir. Küçük sır sıyrıkları olabilir.",
+    imageUrl: "/photos/story-market.jpg",
+  }),
+];
+
+export function findLocalProduct(slug: string) {
+  return localProducts.find((product) => product.slug === slug);
+}

@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Compass, Heart, Search, Sparkles } from "lucide-react";
 import { Link } from "wouter";
+import { HeroEnter, heroItem } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
+const staggerBlock = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
 
 function StoryStage({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   return (
@@ -11,7 +13,7 @@ function StoryStage({ children, className, delay = 0 }: { children: React.ReactN
       className={className}
       initial={{ opacity: 0, y: 42, filter: "blur(8px)" }}
       whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      viewport={{ once: true, amount: 0.35, margin: "0px 0px -12% 0px" }}
+      viewport={{ once: true, amount: 0.22, margin: "0px 0px -8% 0px" }}
       transition={{ duration: 0.75, delay, ease }}
     >
       {children}
@@ -22,19 +24,19 @@ function StoryStage({ children, className, delay = 0 }: { children: React.ReactN
 export default function Story() {
   return (
     <StoreLayout>
-      <section className="story-page-hero enter-from-bar">
-        <div className="container-carmen story-page-intro">
-          <div className="from-bar-copy">
-            <span className="eyebrow">Carmen Antika / Hikâyemiz</span>
-            <h1 className="split-lines">
-              <span>Eşya değil,</span>
-              <span><em>iz</em> biriktiriyoruz.</span>
-            </h1>
-            <p>
+      <section className="story-page-hero">
+        <HeroEnter className="container-carmen story-page-intro">
+          <motion.div className="from-bar-copy" variants={staggerBlock}>
+            <motion.span className="eyebrow" variants={heroItem}>Carmen Antika / Hikâyemiz</motion.span>
+            <motion.h1 variants={staggerBlock}>
+              <motion.span className="hero-line" variants={heroItem}>Eşya değil,</motion.span>
+              <motion.span className="hero-line" variants={heroItem}><em>iz</em> biriktiriyoruz.</motion.span>
+            </motion.h1>
+            <motion.p variants={heroItem}>
               Antalya'nın farklı köşelerindeki bit pazarlarını, eski dükkânları ve unutulmuş çekmeceleri geziyoruz. Bazen bir radyo, bazen kurmalı bir oyuncak, bazen de ne işe yaradığını bilmediğimiz bir parça buluyoruz.
-            </p>
-          </div>
-        </div>
+            </motion.p>
+          </motion.div>
+        </HeroEnter>
       </section>
 
       <StoryStage className="story-page-grid container-carmen">
@@ -43,7 +45,7 @@ export default function Story() {
         </div>
         <div className="story-page-copy">
           <span className="eyebrow">01 / Bulmak</span>
-          <h2 className="split-lines">
+          <h2 className="stacked-title">
             <span>Gözden kaçanı</span>
             <span><em>görmek.</em></span>
           </h2>
@@ -62,7 +64,7 @@ export default function Story() {
         <div className="container-carmen story-chapter-grid">
           <div className="story-chapter-copy">
             <span className="eyebrow">02 / Seçmek</span>
-            <h2 className="split-lines">
+            <h2 className="stacked-title">
               <span>Her iz</span>
               <span><em>bir cümle.</em></span>
             </h2>
@@ -95,7 +97,7 @@ export default function Story() {
       <StoryStage className="story-page-cta">
         <div className="container-carmen">
           <span className="eyebrow">Sıradaki hikâye</span>
-          <h2 className="split-lines">
+          <h2 className="stacked-title">
             <span>Belki bugün</span>
             <span><em>senin evindedir.</em></span>
           </h2>

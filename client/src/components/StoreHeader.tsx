@@ -12,7 +12,7 @@ const ease = [0.22, 0.8, 0.24, 1] as const;
 export function StoreHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
+  const [cartPhase, setCartPhase] = useState<"closed" | "open" | "closing">("closed");
   const [searchTerm, setSearchTerm] = useState("");
   const [location] = useLocation();
   const { items, totalCents, removeItem } = useCart();
@@ -20,12 +20,29 @@ export function StoreHeader() {
   const cartOpenRef = useRef(false);
   const searchOpenRef = useRef(false);
   const mobileOpenRef = useRef(false);
-  cartOpenRef.current = cartOpen;
+  const pendingPath = useRef<string | null>(null);
+  const cartSettled = useRef(false);
+  cartOpenRef.current = cartPhase !== "closed";
   searchOpenRef.current = searchOpen;
   mobileOpenRef.current = mobileOpen;
 
+  const settleCart = () => {
+    if (cartSettled.current) return;
+    cartSettled.current = true;
+    const next = pendingPath.current;
+    pendingPath.current = null;
+    setCartPhase("closed");
+    if (next) goWithCurtain(next);
+  };
+
+  const closeCart = () => setCartPhase((phase) => {
+    if (phase !== "open") return phase;
+    cartSettled.current = false;
+    return "closing";
+  });
+
   useEffect(() => {
-    setCartOpen(false);
+    setCartPhase("closed");
     setSearchOpen(false);
     setMobileOpen(false);
   }, [location]);
@@ -33,7 +50,7 @@ export function StoreHeader() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (cartOpenRef.current) setCartOpen(false);
+      if (cartOpenRef.current) closeCart();
       else if (searchOpenRef.current) setSearchOpen(false);
       else if (mobileOpenRef.current) setMobileOpen(false);
     };
@@ -42,15 +59,26 @@ export function StoreHeader() {
   }, []);
 
   useEffect(() => {
-    if (!cartOpen) return;
+    if (cartPhase !== "open") return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [cartOpen]);
+  }, [cartPhase]);
+
+  useEffect(() => {
+    if (cartPhase !== "closing") return;
+    const timer = window.setTimeout(settleCart, 480);
+    return () => window.clearTimeout(timer);
+  }, [cartPhase]);
 
   const go = (path: string) => {
     setMobileOpen(false);
     setSearchOpen(false);
-    setCartOpen(false);
+    if (cartPhase === "open") {
+      pendingPath.current = path;
+      cartSettled.current = false;
+      setCartPhase("closing");
+      return;
+    }
     goWithCurtain(path);
   };
   const submitSearch = (event: React.FormEvent) => {
@@ -90,7 +118,7 @@ export function StoreHeader() {
             <button className="icon-button mobile-toggle" type="button" aria-label="Menüyü aç" aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <button className={`cart-button ${cartOpen ? "active" : ""}`} type="button" onClick={() => setCartOpen(true)}>
+            <button className={`cart-button ${cartPhase !== "closed" ? "active" : ""}`} type="button" onClick={() => { cartSettled.current = false; setCartPhase("open"); }}>
               <ShoppingBag size={15} strokeWidth={1.8} />
               <span className="cart-label">Çanta</span>
               <span className="cart-count">{items.length}</span>
@@ -139,15 +167,22 @@ export function StoreHeader() {
           )}
         </AnimatePresence>
       </header>
-      {cartOpen && (
-          <div className="cart-drawer-overlay" onClick={() => setCartOpen(false)}>
-            <aside className="quick-cart-drawer" onClick={(event) => event.stopPropagation()}>
+      {cartPhase !== "closed" && (
+          <div className={`cart-drawer-overlay ${cartPhase === "closing" ? "is-closing" : "is-open"}`} onClick={closeCart}>
+            <aside
+              className="quick-cart-drawer"
+              onClick={(event) => event.stopPropagation()}
+              onAnimationEnd={(event) => {
+                if (event.target !== event.currentTarget || event.animationName !== "cart-slide-out") return;
+                settleCart();
+              }}
+            >
               <div className="quick-cart-head">
                 <div>
                   <span className="eyebrow">Carmen Antika</span>
                   <h2>Çantan</h2>
                 </div>
-                <button type="button" onClick={() => setCartOpen(false)} aria-label="Çantayı kapat"><X size={20} /></button>
+                <button type="button" onClick={closeCart} aria-label="Çantayı kapat"><X size={20} /></button>
               </div>
               {items.length === 0 ? (
                 <div className="quick-cart-empty">

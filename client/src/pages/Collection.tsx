@@ -1,11 +1,13 @@
 import { motion } from "framer-motion";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
+import { HeroEnter, heroItem } from "@/components/PageMotion";
 import { ProductCard } from "@/components/ProductCard";
 import { StoreLayout } from "@/components/StoreLayout";
 import { trpc } from "@/lib/trpc";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
+const staggerBlock = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
 
 export default function Collection() {
   const { data, isLoading, error } = trpc.product.list.useQuery();
@@ -24,25 +26,25 @@ export default function Collection() {
 
   return (
     <StoreLayout>
-      <section className="catalog-hero enter-from-bar">
-        <div className="container-carmen catalog-hero-inner">
-          <div className="from-bar-copy">
-            <span className="eyebrow">Carmen Antika / Koleksiyon</span>
-            <h1 className="split-lines">
-              <span>Pazardan</span>
-              <span><em>gelenler.</em></span>
-            </h1>
-            <p>Her biri tek olan küçük keşifler. Birinin artık kullanmadığı, senin yıllardır aradığın şey olabilir.</p>
-          </div>
-          <div className="catalog-mark">
+      <section className="catalog-hero">
+        <HeroEnter className="container-carmen catalog-hero-inner">
+          <motion.div className="from-bar-copy" variants={staggerBlock}>
+            <motion.span className="eyebrow" variants={heroItem}>Carmen Antika / Koleksiyon</motion.span>
+            <motion.h1 variants={staggerBlock}>
+              <motion.span className="hero-line" variants={heroItem}>Pazardan</motion.span>
+              <motion.span className="hero-line" variants={heroItem}><em>gelenler.</em></motion.span>
+            </motion.h1>
+            <motion.p variants={heroItem}>Her biri tek olan küçük keşifler. Birinin artık kullanmadığı, senin yıllardır aradığın şey olabilir.</motion.p>
+          </motion.div>
+          <motion.div className="catalog-mark" variants={heroItem}>
             <span>01</span>
             <small>tekil stok<br />günlük keşif</small>
-          </div>
-        </div>
+          </motion.div>
+        </HeroEnter>
       </section>
       <section className="catalog-shell">
         <div className="container-carmen">
-          <div className="catalog-toolbar motion-reveal">
+          <motion.div className="catalog-toolbar" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.34, ease }}>
             <div className="catalog-filters">
               <SlidersHorizontal size={15} />
               <span>Filtrele</span>
@@ -57,7 +59,7 @@ export default function Collection() {
               <Search size={15} />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Parça ara..." aria-label="Koleksiyonda ara" />
             </label>
-          </div>
+          </motion.div>
           {isLoading ? (
             <div className="catalog-state motion-reveal">Koleksiyon açılıyor...</div>
           ) : error ? (
@@ -79,8 +81,8 @@ export default function Collection() {
                     key={product.id}
                     initial={{ opacity: 0, y: 42, filter: "blur(8px)" }}
                     whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    viewport={{ once: true, amount: 0.35, margin: "0px 0px -12% 0px" }}
-                    transition={{ duration: 0.75, delay: (index % 4) * 0.08, ease }}
+                    viewport={{ once: true, amount: 0.2, margin: "0px 0px -8% 0px" }}
+                    transition={{ duration: 0.8, delay: (index % 4) * 0.09, ease }}
                   >
                     <ProductCard product={product} index={index} />
                   </motion.div>

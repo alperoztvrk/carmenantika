@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
+import { PageRise } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
 
 const content: Record<string, { label: string; title: string; text: string }> = {
@@ -10,5 +11,5 @@ const content: Record<string, { label: string; title: string; text: string }> = 
 
 export default function InfoPage({ params }: { params: { topic?: string } }) {
   const page = content[params.topic ?? "iletisim"] ?? content.iletisim;
-  return <StoreLayout><section className="info-page"><div className="container-carmen"><Link href="/" className="info-back"><ArrowLeft size={15} /> Ana sayfaya dön</Link><span className="eyebrow">{page.label}</span><h1>{page.title}</h1><p>{page.text}</p><a className="primary-cta" href="mailto:merhaba@carmenantika.com">Bize yaz <ArrowRight size={15} /></a></div></section></StoreLayout>;
+  return <StoreLayout><PageRise><section className="info-page"><div className="container-carmen"><Link href="/" className="info-back"><ArrowLeft size={15} /> Ana sayfaya dön</Link><span className="eyebrow">{page.label}</span><h1>{page.title}</h1><p>{page.text}</p><a className="primary-cta" href="mailto:merhaba@carmenantika.com">Bize yaz <ArrowRight size={15} /></a></div></section></PageRise></StoreLayout>;
 }

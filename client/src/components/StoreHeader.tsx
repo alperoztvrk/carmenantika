@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { ArrowRight, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -12,7 +12,7 @@ const ease = [0.22, 0.8, 0.24, 1] as const;
 export function StoreHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [cartPhase, setCartPhase] = useState<"closed" | "open" | "closing">("closed");
+  const [cartOpen, setCartOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [location] = useLocation();
   const { items, totalCents, removeItem } = useCart();
@@ -21,28 +21,20 @@ export function StoreHeader() {
   const searchOpenRef = useRef(false);
   const mobileOpenRef = useRef(false);
   const pendingPath = useRef<string | null>(null);
-  const cartSettled = useRef(false);
-  cartOpenRef.current = cartPhase !== "closed";
+  cartOpenRef.current = cartOpen;
   searchOpenRef.current = searchOpen;
   mobileOpenRef.current = mobileOpen;
 
-  const settleCart = () => {
-    if (cartSettled.current) return;
-    cartSettled.current = true;
+  const closeCart = () => setCartOpen(false);
+
+  const finishCartExit = () => {
     const next = pendingPath.current;
     pendingPath.current = null;
-    setCartPhase("closed");
     if (next) goWithCurtain(next);
   };
 
-  const closeCart = () => setCartPhase((phase) => {
-    if (phase !== "open") return phase;
-    cartSettled.current = false;
-    return "closing";
-  });
-
   useEffect(() => {
-    setCartPhase("closed");
+    setCartOpen(false);
     setSearchOpen(false);
     setMobileOpen(false);
   }, [location]);
@@ -59,24 +51,17 @@ export function StoreHeader() {
   }, []);
 
   useEffect(() => {
-    if (cartPhase !== "open") return;
+    if (!cartOpen) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [cartPhase]);
-
-  useEffect(() => {
-    if (cartPhase !== "closing") return;
-    const timer = window.setTimeout(settleCart, 480);
-    return () => window.clearTimeout(timer);
-  }, [cartPhase]);
+  }, [cartOpen]);
 
   const go = (path: string) => {
     setMobileOpen(false);
     setSearchOpen(false);
-    if (cartPhase === "open") {
+    if (cartOpen) {
       pendingPath.current = path;
-      cartSettled.current = false;
-      setCartPhase("closing");
+      setCartOpen(false);
       return;
     }
     goWithCurtain(path);
@@ -118,7 +103,7 @@ export function StoreHeader() {
             <button className="icon-button mobile-toggle" type="button" aria-label="Menüyü aç" aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <button className={`cart-button ${cartPhase !== "closed" ? "active" : ""}`} type="button" onClick={() => { cartSettled.current = false; setCartPhase("open"); }}>
+            <button className={`cart-button ${cartOpen ? "active" : ""}`} type="button" onClick={() => setCartOpen(true)}>
               <ShoppingBag size={15} strokeWidth={1.8} />
               <span className="cart-label">Çanta</span>
               <span className="cart-count">{items.length}</span>
@@ -167,15 +152,18 @@ export function StoreHeader() {
           )}
         </AnimatePresence>
       </header>
-      {cartPhase !== "closed" && (
-          <div className={`cart-drawer-overlay ${cartPhase === "closing" ? "is-closing" : "is-open"}`} onClick={closeCart}>
-            <aside
+      {cartOpen && <div className="cart-drawer-overlay" onClick={closeCart} />}
+      <MotionConfig reducedMotion="never">
+        <AnimatePresence onExitComplete={finishCartExit}>
+          {cartOpen && (
+            <motion.aside
+              key="quick-cart"
               className="quick-cart-drawer"
+              initial={{ x: "105%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "105%" }}
+              transition={{ duration: 0.55, ease }}
               onClick={(event) => event.stopPropagation()}
-              onAnimationEnd={(event) => {
-                if (event.target !== event.currentTarget || event.animationName !== "cart-slide-out") return;
-                settleCart();
-              }}
             >
               <div className="quick-cart-head">
                 <div>
@@ -212,9 +200,10 @@ export function StoreHeader() {
                   <button className="quick-cart-cta" type="button" onClick={() => go("/sepet")}>Siparişi tamamla <ArrowRight size={16} /></button>
                 </>
               )}
-            </aside>
-          </div>
-        )}
+            </motion.aside>
+          )}
+        </AnimatePresence>
+      </MotionConfig>
     </>
   );
 }

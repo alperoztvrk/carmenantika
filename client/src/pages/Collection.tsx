@@ -79,8 +79,8 @@ export default function Collection() {
                 {products.map((product, index) => (
                   <motion.div
                     key={product.id}
-                    initial={{ opacity: 0, y: 42, filter: "blur(8px)" }}
-                    whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    initial={{ opacity: 0, y: 28 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.2, margin: "0px 0px -8% 0px" }}
                     transition={{ duration: 0.8, delay: (index % 4) * 0.09, ease }}
                   >

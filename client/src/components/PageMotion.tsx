@@ -8,8 +8,8 @@ const stagger = {
 };
 
 export const heroItem = {
-  hidden: { opacity: 0, y: -36, filter: "blur(8px)" },
-  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.78, ease } },
+  hidden: { opacity: 0, y: -28 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.72, ease } },
 };
 
 export function HeroEnter({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -22,7 +22,7 @@ export function HeroEnter({ children, className }: { children: React.ReactNode; 
 
 export function PageRise({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.62, delay, ease }}>
+    <motion.div initial={{ y: 14 }} animate={{ y: 0 }} transition={{ duration: 0.55, delay, ease }}>
       {children}
     </motion.div>
   );

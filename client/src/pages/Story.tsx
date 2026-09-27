@@ -5,7 +5,7 @@ import { StoreLayout } from "@/components/StoreLayout";
 export default function Story() {
   return (
     <StoreLayout>
-      <section className="story-page-hero enter-from-bar">
+      <section className="story-page-hero scroll-stage">
         <div className="container-carmen story-page-intro">
           <div>
             <span className="eyebrow">Carmen Antika / Hikâyemiz</span>

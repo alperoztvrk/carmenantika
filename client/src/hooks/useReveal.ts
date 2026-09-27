@@ -2,6 +2,16 @@ import { useEffect } from "react";
 
 const SELECTOR = "[data-reveal], .motion-reveal, .motion-clip, .motion-stagger, .scroll-stage";
 
+function placement(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const viewport = window.innerHeight || 1;
+  if (rect.width < 2 || rect.height < 2) return "out";
+  if (rect.bottom < 12 || rect.top > viewport - 12) return "out";
+  const shown = Math.min(rect.bottom, viewport * 0.94) - Math.max(rect.top, viewport * 0.05);
+  if (shown > Math.min(88, rect.height * 0.18)) return "in";
+  return "edge";
+}
+
 export function useReveal() {
   useEffect(() => {
     const root = document.documentElement;
@@ -12,32 +22,37 @@ export function useReveal() {
       return !stage || stage === element;
     });
 
+    const showAll = () => nodes().forEach((element) => element.classList.add("is-visible", "is-in"));
     if (reduce) {
-      nodes().forEach((element) => element.classList.add("is-visible", "is-in"));
-      return;
+      showAll();
+      const mutations = new MutationObserver(showAll);
+      mutations.observe(document.body, { childList: true, subtree: true });
+      return () => mutations.disconnect();
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const once = entry.target.classList.contains("scroll-stage");
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible", "is-in");
-          } else if (!once) {
-            entry.target.classList.remove("is-visible", "is-in");
-          }
-        });
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
-    );
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      nodes().forEach((element) => {
+        const where = placement(element);
+        if (where === "in") element.classList.add("is-visible", "is-in");
+        else if (where === "out") element.classList.remove("is-visible", "is-in");
+      });
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
 
-    const watch = () => nodes().forEach((element) => observer.observe(element));
-    watch();
-    const mutations = new MutationObserver(watch);
+    update();
+    const mutations = new MutationObserver(schedule);
     mutations.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     return () => {
-      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
       mutations.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
     };
   }, []);
 }

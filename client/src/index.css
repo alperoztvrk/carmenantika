@@ -664,6 +664,76 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
   .story-chapter-grid { grid-template-columns: 1fr; }
   .story-float-late { width: 100%; }
 }
+
+/* Phone and small tablet: one calm column, nothing sitting on top of the bar */
+@media (max-width: 900px) {
+  .header-main { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; min-height: 68px; }
+  .brand-lockup { min-width: 0; justify-self: start; }
+  .brand-name { font-size: clamp(28px, 7vw, 36px); }
+  .brand-sub { display: none; }
+  .header-actions { gap: 2px; min-width: 0; }
+  .icon-button, .cart-button, .mobile-toggle { flex-shrink: 0; }
+  .cart-label { display: none; }
+  .cart-button { padding: 8px 10px; gap: 6px; }
+  .site-header { z-index: 40; }
+  .mobile-menu, .search-panel { z-index: 30; }
+  .mobile-menu a { display: block; }
+  .hero-title, .catalog-hero h1, .story-page-intro h1, .story-page-copy h2, .story-page-cta h2,
+  .checkout-heading h1, .orders-heading h1, .admin-heading h1, .info-page h1, .detail-copy h1, .success-card h1 {
+    overflow-wrap: break-word;
+  }
+}
+@media (max-width: 640px) {
+  .container-carmen { width: min(100% - 28px, 700px); }
+  .topline-inner { gap: 12px; }
+  .topline-inner span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hero { padding: 28px 0 40px; }
+  .hero-only { padding-top: 12px; }
+  .hero-title { font-size: clamp(44px, 12.5vw, 62px); }
+  .hero-intro { margin: 18px 0 22px; }
+  .hero-visual { min-height: 380px; }
+  .hero-stamp { width: 76px; height: 76px; top: 16px; right: 12px; }
+  .hero-caption { left: 12px; right: auto; bottom: 12px; width: min(190px, 58%); }
+  .cta-row { display: grid; gap: 10px; }
+  .primary-cta, .outline-cta { width: 100%; }
+  .catalog-hero, .story-page-hero { padding: 48px 0 36px; }
+  .catalog-hero h1, .story-page-intro h1 { font-size: clamp(48px, 13vw, 68px); }
+  .catalog-hero p, .story-page-intro p { margin-top: 16px; }
+  .catalog-mark { margin-top: 22px; }
+  .catalog-mark span { font-size: 36px; }
+  .catalog-shell { padding: 28px 0 72px; }
+  .catalog-filters, .filter-list { flex-wrap: wrap; max-width: 100%; overflow: visible; }
+  .catalog-filters button, .filter-chip { flex: 0 1 auto; }
+  .catalog-grid, .product-grid { grid-template-columns: 1fr 1fr; gap: 22px 12px; }
+  .catalog-card-meta h3, .product-meta h3 { font-size: 20px; }
+  .catalog-card-buy { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; }
+  .card-add { padding: 8px 9px; }
+  .story-page-grid, .story-chapter { padding-top: 48px; padding-bottom: 48px; }
+  .story-page-copy h2, .story-page-cta h2, .story-quote-band blockquote { font-size: clamp(40px, 11vw, 56px); }
+  .story-page-cta, .story-quote-band { padding: 56px 0; }
+  .story-pillars span { max-width: 100%; }
+  .detail-copy h1, .checkout-heading h1, .orders-heading h1, .admin-heading h1, .info-page h1, .success-card h1 { font-size: clamp(42px, 12vw, 58px); }
+  .info-page { padding: 56px 0 80px; }
+  .info-back { margin-bottom: 28px; }
+  .checkout-page, .orders-page, .admin-page { padding-top: 36px; }
+  .checkout-heading h1, .orders-heading h1 { margin-bottom: 24px; }
+  .checkout-form-head h2 { font-size: 34px; }
+  .checkout-item { grid-template-columns: 72px minmax(0, 1fr) auto; }
+  .checkout-item h2, .checkout-item p, .admin-product-info strong { overflow-wrap: anywhere; }
+  .checkout-submit, .detail-add { width: 100%; }
+  .detail-actions { display: grid; }
+  .admin-stat { justify-items: start; margin-top: 18px; border-left: 0; border-top: 1px solid var(--border); padding: 14px 0 0; }
+  .admin-panel-head, .admin-heading { align-items: start; }
+  .admin-panel-head { flex-direction: column; }
+  .admin-product-row { grid-template-columns: 56px minmax(0, 1fr); }
+  .admin-row-actions { grid-column: 2; justify-content: start; }
+  .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+  .search-panel-form { width: 100%; }
+  .quick-cart-head h2 { font-size: 36px; }
+  .success-page { padding: 48px 16px; }
+  .order-row { grid-template-columns: 38px minmax(0, 1fr); }
+  .order-row b, .order-row em { grid-column: 2; }
+}
 @media (prefers-reduced-motion: reduce) {
   .has-motion .motion-reveal,
   .has-motion .motion-stagger > *,

@@ -97,10 +97,10 @@ export function StoreHeader() {
             <span className="brand-sub">Flea market finds · Est. 2024</span>
           </Link>
           <div className="header-actions">
-            <button className={`icon-button ${searchOpen ? "active" : ""}`} type="button" aria-label="Arama" aria-expanded={searchOpen} onClick={() => setSearchOpen((open) => !open)}>
+            <button className={`icon-button ${searchOpen ? "active" : ""}`} type="button" aria-label="Arama" aria-expanded={searchOpen} onClick={() => { setMobileOpen(false); setSearchOpen((open) => !open); }}>
               {searchOpen ? <X size={18} /> : <Search size={18} strokeWidth={1.7} />}
             </button>
-            <button className="icon-button mobile-toggle" type="button" aria-label="Menüyü aç" aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
+            <button className="icon-button mobile-toggle" type="button" aria-label="Menüyü aç" aria-expanded={mobileOpen} onClick={() => { setSearchOpen(false); setMobileOpen((open) => !open); }}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             <button className={`cart-button ${cartOpen ? "active" : ""}`} type="button" onClick={() => setCartOpen(true)}>

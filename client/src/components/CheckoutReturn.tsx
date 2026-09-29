@@ -7,8 +7,12 @@ export function CheckoutReturn() {
 
   useEffect(() => {
     if (location.startsWith("/siparis-basarili") || location.startsWith("/admin")) return;
-    const cancelled = new URLSearchParams(window.location.search).get("iptal");
-    if (cancelled) return;
+    const params = new URLSearchParams(window.location.search);
+    const cancelled = params.get("iptal");
+    if (cancelled) {
+      navigate(`/siparis-basarili?order=${encodeURIComponent(cancelled)}`);
+      return;
+    }
     const orderNumber = peekCheckoutOrder();
     if (!orderNumber) return;
     if (location === "/" || location === "" || location.startsWith("/sepet")) {

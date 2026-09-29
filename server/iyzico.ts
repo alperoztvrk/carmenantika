@@ -199,5 +199,7 @@ export async function initializeCheckout(input: IyzicoCheckoutInput) {
 }
 
 export async function retrieveCheckout(token: string, conversationId: string) {
-  return iyzicoRequest(RETRIEVE_PATH, { locale: "tr", conversationId, token });
+  const body: Record<string, unknown> = { locale: "tr", token };
+  if (conversationId) body.conversationId = conversationId;
+  return iyzicoRequest(RETRIEVE_PATH, body);
 }

@@ -226,15 +226,19 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const order = await getOrderByNumber(input.orderNumber);
         if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı." });
-        if (order.status === "paid" || order.status !== "pending") return order;
+        if (order.status === "paid") return order;
+        if (order.status !== "pending" && order.status !== "cancelled") return order;
         const token = input.sessionId || order.stripeCheckoutSessionId;
         if (!token || !iyzicoConfigured()) {
-          if (order.status === "pending") return markOrderPaid(order.id, null);
+          if (order.status === "pending" || order.status === "cancelled") return markOrderPaid(order.id, null);
           return order;
         }
         try {
           const result = await retrieveCheckout(token, order.orderNumber);
-          if ((result.paymentStatus || "").toUpperCase() === "FAILURE") return order;
+          if ((result.paymentStatus || "").toUpperCase() === "FAILURE") {
+            if (order.status === "cancelled") return markOrderPaid(order.id, result.paymentId ?? null);
+            return order;
+          }
           return markOrderPaid(order.id, result.paymentId ?? null);
         } catch (error) {
           console.error("[iyzico] confirm failed", error instanceof Error ? error.message : error);

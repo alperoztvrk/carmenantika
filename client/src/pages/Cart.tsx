@@ -5,7 +5,7 @@ import { StoreImage } from "@/components/StoreImage";
 import { PageRise } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
 import { holdLabel, useCart } from "@/contexts/CartContext";
-import { forgetCheckoutOrder, rememberCheckoutOrder } from "@/lib/checkoutOrder";
+import { rememberCheckoutOrder } from "@/lib/checkoutOrder";
 import { trpc } from "@/lib/trpc";
 import { money } from "@/components/ProductCard";
 
@@ -20,12 +20,10 @@ export default function Cart() {
   const { items, totalCents, removeItem, clear, beginCheckoutHold, endCheckoutHold } = useCart();
   const [now, setNow] = useState(() => Date.now());
   const [form, setForm] = useState({ name: "", phone: "", address: "" });
-  const cancelCheckout = trpc.order.cancelCheckout.useMutation();
   useEffect(() => {
-    const orderNumber = new URLSearchParams(window.location.search).get("iptal");
-    if (orderNumber) {
-      forgetCheckoutOrder();
-      cancelCheckout.mutate({ orderNumber });
+    const cancelled = new URLSearchParams(window.location.search).get("iptal");
+    if (cancelled) {
+      window.location.replace(`/siparis-basarili?order=${encodeURIComponent(cancelled)}`);
     }
   }, []);
   useEffect(() => {

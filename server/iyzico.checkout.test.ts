@@ -147,7 +147,7 @@ describe("iyzico checkout", () => {
     expect(started.url).toBe("https://sandbox-pwi.iyzipay.com/checkout?token=tok_pwi");
   });
 
-  it("cancels the pending order when iyzico reports a failed payment", async () => {
+  it("does not send the shopper to the cart while 3D Secure is still open", async () => {
     process.env.IYZICO_API_KEY = "sandbox-key";
     process.env.IYZICO_SECRET_KEY = "sandbox-secret";
     let orderNumber = "";
@@ -160,15 +160,34 @@ describe("iyzico checkout", () => {
     };
     const started = await caller().order.createCheckout({ ...checkoutInput, productIds: [9002] });
     orderNumber = started.orderNumber;
-    const destination = await completeIyzicoCheckout("tok_fail", orderNumber);
-    expect(destination).toContain("/sepet?iptal=");
+    const destination = await completeIyzicoCheckout("tok_fail", orderNumber, false);
+    expect(destination).toBeNull();
     const order = await caller().order.byNumber({ orderNumber });
-    expect(order?.status).toBe("cancelled");
+    expect(order?.status).toBe("pending");
     const present = await caller().product.present({ ids: [9002] });
-    expect(present[0]?.isAvailable).toBe(1);
+    expect(present[0]?.isAvailable).toBe(0);
   });
 
-  it("keeps the shopper on the success page while iyzico is still confirming", async () => {
+  it("opens the receipt when the shopper comes back after SMS", async () => {
+    process.env.IYZICO_API_KEY = "sandbox-key";
+    process.env.IYZICO_SECRET_KEY = "sandbox-secret";
+    let orderNumber = "";
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/detail")) {
+        return Response.json({ status: "success", paymentStatus: "SUCCESS", paymentId: "pay_sms", conversationId: orderNumber, basketId: orderNumber });
+      }
+      return Response.json({ status: "success", paymentPageUrl: "https://sandbox-cpp.iyzipay.com?token=tok_sms", token: "tok_sms" });
+    };
+    const started = await caller().order.createCheckout(checkoutInput);
+    orderNumber = started.orderNumber;
+    const destination = await completeIyzicoCheckout("tok_sms", orderNumber, true);
+    expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
+    const order = await caller().order.byNumber({ orderNumber });
+    expect(order?.status).toBe("paid");
+  });
+
+  it("keeps the 3D Secure page open while iyzico is still confirming", async () => {
     process.env.IYZICO_API_KEY = "sandbox-key";
     process.env.IYZICO_SECRET_KEY = "sandbox-secret";
     let orderNumber = "";
@@ -181,13 +200,13 @@ describe("iyzico checkout", () => {
     };
     const started = await caller().order.createCheckout(checkoutInput);
     orderNumber = started.orderNumber;
-    const destination = await completeIyzicoCheckout("tok_wait", orderNumber);
-    expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
+    const destination = await completeIyzicoCheckout("tok_wait", orderNumber, false);
+    expect(destination).toBeNull();
     const order = await caller().order.byNumber({ orderNumber });
-    expect(order?.status).toBe("paid");
+    expect(order?.status).toBe("pending");
   });
 
-  it("marks the order paid when the shopper returns even if retrieve is delayed", async () => {
+  it("opens the receipt when retrieve is delayed but the shopper already returned", async () => {
     process.env.IYZICO_API_KEY = "sandbox-key";
     process.env.IYZICO_SECRET_KEY = "sandbox-secret";
     let orderNumber = "";
@@ -198,7 +217,7 @@ describe("iyzico checkout", () => {
     };
     const started = await caller().order.createCheckout(checkoutInput);
     orderNumber = started.orderNumber;
-    const destination = await completeIyzicoCheckout("tok_slow", orderNumber);
+    const destination = await completeIyzicoCheckout("tok_slow", orderNumber, true);
     expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
     const order = await caller().order.byNumber({ orderNumber });
     expect(order?.status).toBe("paid");

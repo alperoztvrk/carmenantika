@@ -1,13 +1,9 @@
 import type { Express, Request, Response } from "express";
-import { findLatestPendingOrder, getOrderByCheckoutSession, getOrderByNumber, markOrderPaid, updateOrder, updateProductsAvailability } from "./db";
-import { publicOrigin, retrieveCheckout } from "./iyzico";
+import { findLatestPendingOrder, getOrderByCheckoutSession, getOrderByNumber, markOrderPaid } from "./db";
+import { publicOrigin, retrieveCheckout, type IyzicoPayment } from "./iyzico";
 
 function successPath(orderNumber: string) {
   return `/siparis-basarili?order=${encodeURIComponent(orderNumber)}`;
-}
-
-function cancelPath(orderNumber?: string) {
-  return orderNumber ? `/sepet?iptal=${encodeURIComponent(orderNumber)}` : "/sepet";
 }
 
 function pick(record: Record<string, unknown>, names: string[]) {
@@ -36,42 +32,43 @@ async function locateOrder(token: string, hintedOrderNumber: string) {
   return undefined;
 }
 
-export async function completeIyzicoCheckout(token: string, hintedOrderNumber = "") {
+function wait(ms: number) {
+  if (process.env.NODE_ENV === "test") return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function paymentStatusOf(result: IyzicoPayment) {
+  return (result.paymentStatus || "").toUpperCase();
+}
+
+export async function completeIyzicoCheckout(token: string, hintedOrderNumber = "", allowRedirect = false) {
   let order = await locateOrder(token, hintedOrderNumber);
+  if (!token) return order && allowRedirect ? successPath(order.orderNumber) : null;
 
-  if (!token && !hintedOrderNumber) return cancelPath();
-
-  try {
-    if (token) {
-      const result = await retrieveCheckout(token, order?.orderNumber || hintedOrderNumber);
-      const fromConversation = result.conversationId ? await getOrderByNumber(result.conversationId) : undefined;
-      const fromBasket = result.basketId ? await getOrderByNumber(result.basketId) : undefined;
+  const attempts = process.env.NODE_ENV === "test" ? 1 : 6;
+  let last: IyzicoPayment | undefined;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      last = await retrieveCheckout(token, order?.orderNumber || hintedOrderNumber);
+      const fromConversation = last.conversationId ? await getOrderByNumber(last.conversationId) : undefined;
+      const fromBasket = last.basketId ? await getOrderByNumber(last.basketId) : undefined;
       order = order ?? fromConversation ?? fromBasket ?? (await findLatestPendingOrder());
-      if (!order) return successPath(hintedOrderNumber);
-
-      const status = (result.paymentStatus || "").toUpperCase();
-      if (status === "FAILURE") {
-        if (order.status === "pending") {
-          await updateProductsAvailability(order.items.map((item) => item.productId), 1);
-          await updateOrder(order.id, { status: "cancelled" });
-        }
-        return cancelPath(order.orderNumber);
+      const status = paymentStatusOf(last);
+      console.log("[iyzico] retrieve", { attempt, status, paymentId: last.paymentId || "-", error: last.errorMessage || "-" });
+      if (status === "SUCCESS" && order) {
+        if (order.status !== "paid") await markOrderPaid(order.id, last.paymentId ?? null);
+        return successPath(order.orderNumber);
       }
-      if (order.status !== "paid") await markOrderPaid(order.id, result.paymentId ?? null);
-      return successPath(order.orderNumber);
+    } catch (error) {
+      console.error("[iyzico] retrieve failed", error instanceof Error ? error.message : error);
     }
-    if (order) {
-      if (order.status !== "paid") await markOrderPaid(order.id, null);
-      return successPath(order.orderNumber);
-    }
-    return successPath(hintedOrderNumber);
-  } catch (error) {
-    if (order) {
-      if (order.status !== "paid") await markOrderPaid(order.id, null);
-      return successPath(order.orderNumber);
-    }
-    throw error;
+    if (attempt < attempts) await wait(700);
   }
+
+  if (!allowRedirect) return null;
+  if (!order) return successPath(hintedOrderNumber);
+  if (order.status !== "paid") await markOrderPaid(order.id, last?.paymentId ?? null);
+  return successPath(order.orderNumber);
 }
 
 function readCallbackFields(req: Request) {
@@ -81,6 +78,11 @@ function readCallbackFields(req: Request) {
     token: body.token || query.token,
     hinted: body.hinted || query.hinted,
   };
+}
+
+function inIframe(req: Request) {
+  const dest = String(req.headers["sec-fetch-dest"] || "").toLowerCase();
+  return dest === "iframe" || dest === "empty";
 }
 
 function sendShopper(req: Request, res: Response, path: string) {
@@ -107,19 +109,31 @@ function sendShopper(req: Request, res: Response, path: string) {
 
 async function handleIyzicoReturn(req: Request, res: Response) {
   const { token, hinted } = readCallbackFields(req);
+  const allowRedirect = !inIframe(req);
   console.log("[iyzico] callback", {
     hasToken: Boolean(token),
     conversationId: hinted || "-",
     contentType: String(req.headers["content-type"] || "-"),
     keys: Object.keys((req.body as object) || {}),
+    dest: String(req.headers["sec-fetch-dest"] || "-"),
+    allowRedirect,
   });
   try {
-    sendShopper(req, res, await completeIyzicoCheckout(token, hinted));
+    const path = await completeIyzicoCheckout(token, hinted, allowRedirect);
+    if (!path) {
+      res.status(200).set({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).send("<!doctype html><html><body></body></html>");
+      return;
+    }
+    sendShopper(req, res, path);
   } catch (error) {
     console.error("[iyzico] callback failed", error instanceof Error ? error.message : error);
     const order = (hinted ? await getOrderByNumber(hinted) : undefined)
       ?? (token ? await getOrderByCheckoutSession(token) : undefined)
       ?? (await findLatestPendingOrder());
+    if (!allowRedirect) {
+      res.status(200).set({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).send("<!doctype html><html><body></body></html>");
+      return;
+    }
     if (order && order.status !== "paid") await markOrderPaid(order.id, null);
     sendShopper(req, res, order ? successPath(order.orderNumber) : "/siparis-basarili");
   }

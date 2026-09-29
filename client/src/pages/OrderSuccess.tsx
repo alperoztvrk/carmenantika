@@ -15,7 +15,6 @@ export default function OrderSuccess() {
   const { clear } = useCart();
   const utils = trpc.useUtils();
   const cleared = useRef(false);
-  const started = useRef(false);
   const confirm = trpc.order.confirmPayment.useMutation({
     onSuccess: () => {
       if (orderNumber) utils.order.byNumber.invalidate({ orderNumber });
@@ -31,17 +30,19 @@ export default function OrderSuccess() {
   }, [orderNumber]);
 
   useEffect(() => {
-    if (!orderNumber || !order || order.status !== "pending" || started.current) return;
-    started.current = true;
+    if (!orderNumber || (order?.status !== "pending" && order?.status !== "cancelled")) return;
+    const timer = window.setInterval(() => {
+      confirm.mutate({ orderNumber, sessionId: sessionId || undefined });
+    }, 2000);
     confirm.mutate({ orderNumber, sessionId: sessionId || undefined });
-  }, [confirm, order, orderNumber, sessionId]);
+    return () => window.clearInterval(timer);
+  }, [confirm, order?.status, orderNumber, sessionId]);
 
   useEffect(() => {
     if (!orderNumber || cleared.current) return;
-    if (order && order.status === "cancelled") return;
     cleared.current = true;
     clear();
-  }, [clear, order, orderNumber]);
+  }, [clear, orderNumber]);
 
   return (
     <StoreLayout>

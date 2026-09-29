@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import dotenv from "dotenv";
 
 const INITIALIZE_PATH = "/payment/iyzipos/checkoutform/initialize/auth/ecom";
 const RETRIEVE_PATH = "/payment/iyzipos/checkoutform/auth/ecom/detail";
@@ -33,11 +34,29 @@ export type IyzicoPayment = {
 
 type HeaderBag = Record<string, string | string[] | undefined>;
 
+function cleanKey(value: string) {
+  let key = value.replace(/^\uFEFF/, "").trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) key = key.slice(1, -1).trim();
+  key = key.replace(/\s+/g, "");
+  const sandboxAt = key.toLowerCase().indexOf("sandbox-");
+  if (sandboxAt > 0) key = key.slice(sandboxAt);
+  return key;
+}
+
 export function iyzicoConfig() {
-  const apiKey = (process.env.IYZICO_API_KEY ?? "").trim();
-  const secretKey = (process.env.IYZICO_SECRET_KEY ?? "").trim();
-  const baseUrl = ((process.env.IYZICO_BASE_URL ?? "").trim() || "https://sandbox-api.iyzipay.com").replace(/\/$/, "");
+  if (process.env.NODE_ENV === "development") dotenv.config({ override: true });
+  const apiKey = cleanKey(process.env.IYZICO_API_KEY ?? "");
+  const secretKey = cleanKey(process.env.IYZICO_SECRET_KEY ?? "");
+  const sandbox = apiKey.toLowerCase().startsWith("sandbox-");
+  const baseUrl = apiKey ? (sandbox ? "https://sandbox-api.iyzipay.com" : "https://api.iyzipay.com") : "https://sandbox-api.iyzipay.com";
   return { apiKey, secretKey, baseUrl };
+}
+
+export function iyzicoStatusLine() {
+  const { apiKey, secretKey, baseUrl } = iyzicoConfig();
+  if (!apiKey || !secretKey) return "IYZICO_API_KEY veya IYZICO_SECRET_KEY boş.";
+  const kind = apiKey.toLowerCase().startsWith("sandbox-") ? "sandbox- ile başlıyor" : "sandbox- ile başlamıyor";
+  return `API anahtarı ${kind}, ${apiKey.length} karakter. Güvenlik anahtarı ${secretKey.length} karakter. Adres ${baseUrl}.`;
 }
 
 export function iyzicoConfigured() {

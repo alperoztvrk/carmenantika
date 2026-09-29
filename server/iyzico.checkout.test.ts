@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { patchLocalProduct } from "./localCatalog";
 import { appRouter } from "./routers";
+import { iyzicoConfig } from "./iyzico";
 import { completeIyzicoCheckout } from "./iyzicoCallback";
 
 const savedEnv = {
@@ -50,6 +51,13 @@ afterEach(() => {
 });
 
 describe("iyzico checkout", () => {
+  it("reads a quoted sandbox key and sends it to the sandbox api", () => {
+    process.env.IYZICO_API_KEY = '"sandbox-key"';
+    process.env.IYZICO_SECRET_KEY = "'sandbox-secret'";
+    process.env.IYZICO_BASE_URL = "https://api.iyzipay.com";
+    expect(iyzicoConfig()).toMatchObject({ apiKey: "sandbox-key", secretKey: "sandbox-secret", baseUrl: "https://sandbox-api.iyzipay.com" });
+  });
+
   it("refuses checkout when the iyzico keys are missing", async () => {
     delete process.env.IYZICO_API_KEY;
     delete process.env.IYZICO_SECRET_KEY;

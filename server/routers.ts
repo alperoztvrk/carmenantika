@@ -23,7 +23,7 @@ import {
   updateOrder,
 } from "./db";
 import { storagePut } from "./storage";
-import { buyerIp, initializeCheckout, iyzicoConfigured, publicOrigin, retrieveCheckout } from "./iyzico";
+import { buyerIp, initializeCheckout, iyzicoConfigured, iyzicoStatusLine, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const productFields = {
   name: z.string(),
@@ -205,7 +205,7 @@ export const appRouter = router({
           const detail = error instanceof Error ? error.message : "";
           console.error("[iyzico] checkout failed", detail);
           if (/api key|secret key|authorization|imza|signature|api bilgileri/i.test(detail)) {
-            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "iyzico anahtarı geçersiz. .env içindeki IYZICO_API_KEY ve IYZICO_SECRET_KEY değerlerini kontrol edip sunucuyu yeniden başlat." });
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: `iyzico bu anahtarı tanımıyor. ${iyzicoStatusLine()} Ayarlar → Firma Ayarları → API Anahtarları → Görüntüle. API Anahtarı satırı IYZICO_API_KEY, Güvenlik Anahtarı satırı IYZICO_SECRET_KEY olmalı. Tırnak koyma. Kaydedince ödemeyi tekrar dene.` });
           }
           if (detail && detail.length < 180 && !/iyzico anahtarı yok/.test(detail)) {
             throw new TRPCError({ code: "BAD_REQUEST", message: `Ödeme sayfası açılamadı. ${detail}` });

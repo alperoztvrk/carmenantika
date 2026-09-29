@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { registerStripeWebhook } from "../stripe";
 import { registerIyzicoCallback } from "../iyzicoCallback";
+import { iyzicoStatusLine } from "../iyzico";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -64,6 +65,7 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    console.log(`[iyzico] ${iyzicoStatusLine()}`);
   });
 }
 

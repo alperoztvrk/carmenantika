@@ -396,13 +396,19 @@ html.scroll-down, html { --reveal-y: 44px; }
 .empty-checkout p { color: var(--muted-foreground); }
 .success-page { display: grid; place-items: center; min-height: 78vh; padding: 80px 20px; background: var(--parchment); }
 .success-card { max-width: 580px; text-align: center; }
-.success-icon { display: grid; place-items: center; width: 68px; height: 68px; margin: 0 auto 28px; border: 1px solid var(--terracotta); border-radius: 50%; color: var(--terracotta); animation: success-pop .8s var(--ease-soft) both; }
-@keyframes success-pop { from { opacity: 0; transform: scale(.75) rotate(-15deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
-.success-card h1 { margin: 18px 0 15px; color: var(--ink); font: 500 clamp(60px, 9vw, 110px)/.78 "Cormorant Garamond", Georgia, serif; letter-spacing: -.08em; }
-.success-card > p { max-width: 400px; margin: 0 auto; color: var(--muted-foreground); line-height: 1.7; }
-.order-number { display: grid; gap: 6px; margin: 30px 0; border: 1px solid var(--border); padding: 16px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
-.order-number strong { color: var(--terracotta); font-size: 15px; }
-.success-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.success-icon { display: grid; place-items: center; width: 72px; height: 72px; margin: 0 auto 28px; border: 1px solid var(--terracotta); border-radius: 50%; color: var(--paper); background: var(--terracotta); box-shadow: 0 12px 24px rgba(91, 39, 23, .16); animation: success-pop .7s var(--ease-soft) both; }
+@keyframes success-pop { from { transform: scale(.86) rotate(-8deg); } to { transform: scale(1) rotate(0); } }
+.success-card h1 { margin: 18px 0 15px; color: var(--ink); font: 500 clamp(52px, 8vw, 96px)/.82 "Cormorant Garamond", Georgia, serif; letter-spacing: -.07em; }
+.success-card h1 em { color: var(--terracotta); font-style: italic; }
+.success-card > p { max-width: 420px; margin: 0 auto; color: var(--muted-foreground); line-height: 1.7; }
+.order-number { display: grid; gap: 6px; margin: 30px 0 0; border: 1px solid var(--border); background: var(--paper); padding: 16px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.order-number strong { color: var(--terracotta); font-size: 15px; letter-spacing: .08em; }
+.success-items { list-style: none; margin: 18px 0 0; padding: 0; border: 1px solid var(--border); background: var(--paper); text-align: left; }
+.success-items li { display: flex; justify-content: space-between; gap: 16px; padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--ink); font-size: 13px; }
+.success-items li:last-child { border-bottom: 0; }
+.success-items b { color: var(--terracotta); font-size: 12px; font-weight: 600; }
+.success-ship { margin: 16px 0 0; color: var(--muted-foreground); font-size: 12px; }
+.success-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 .orders-heading p { margin: -35px 0 48px; color: var(--muted-foreground); }
 .orders-list { border-top: 1px solid var(--border); }
 .order-row { display: grid; grid-template-columns: 42px 1fr auto auto; gap: 16px; align-items: center; border-bottom: 1px solid var(--border); padding: 18px 0; }

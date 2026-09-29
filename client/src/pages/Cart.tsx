@@ -5,6 +5,7 @@ import { StoreImage } from "@/components/StoreImage";
 import { PageRise } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
 import { holdLabel, useCart } from "@/contexts/CartContext";
+import { forgetCheckoutOrder, rememberCheckoutOrder } from "@/lib/checkoutOrder";
 import { trpc } from "@/lib/trpc";
 import { money } from "@/components/ProductCard";
 
@@ -22,7 +23,10 @@ export default function Cart() {
   const cancelCheckout = trpc.order.cancelCheckout.useMutation();
   useEffect(() => {
     const orderNumber = new URLSearchParams(window.location.search).get("iptal");
-    if (orderNumber) cancelCheckout.mutate({ orderNumber });
+    if (orderNumber) {
+      forgetCheckoutOrder();
+      cancelCheckout.mutate({ orderNumber });
+    }
   }, []);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -46,6 +50,7 @@ export default function Cart() {
         setMessage("Ödeme bağlantısı oluşturulamadı.");
         return;
       }
+      rememberCheckoutOrder(result.orderNumber);
       setPaymentUrl(result.url);
       window.location.assign(result.url);
     },

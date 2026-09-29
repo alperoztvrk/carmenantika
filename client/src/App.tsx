@@ -12,6 +12,7 @@ import Story from "@/pages/Story";
 import { Route, Switch } from "wouter";
 import { StoreLayout } from "./components/StoreLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { CheckoutReturn } from "./components/CheckoutReturn";
 import { PageCurtain } from "./components/PageCurtain";
 import { Providers } from "./components/Providers";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -45,7 +46,10 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <PageCurtain />
-          <Providers><StoreLayout><Router /></StoreLayout></Providers>
+          <Providers>
+            <CheckoutReturn />
+            <StoreLayout><Router /></StoreLayout>
+          </Providers>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

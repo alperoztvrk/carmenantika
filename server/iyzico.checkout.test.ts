@@ -167,4 +167,23 @@ describe("iyzico checkout", () => {
     const present = await caller().product.present({ ids: [9002] });
     expect(present[0]?.isAvailable).toBe(1);
   });
+
+  it("keeps the shopper on the success page while iyzico is still confirming", async () => {
+    process.env.IYZICO_API_KEY = "sandbox-key";
+    process.env.IYZICO_SECRET_KEY = "sandbox-secret";
+    let orderNumber = "";
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/detail")) {
+        return Response.json({ status: "success", paymentStatus: "CALLBACK_THREEDS", conversationId: orderNumber, basketId: orderNumber });
+      }
+      return Response.json({ status: "success", paymentPageUrl: "https://sandbox-cpp.iyzipay.com?token=tok_wait", token: "tok_wait" });
+    };
+    const started = await caller().order.createCheckout(checkoutInput);
+    orderNumber = started.orderNumber;
+    const destination = await completeIyzicoCheckout("tok_wait", orderNumber);
+    expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
+    const order = await caller().order.byNumber({ orderNumber });
+    expect(order?.status).toBe("pending");
+  });
 });

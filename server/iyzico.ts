@@ -23,14 +23,20 @@ export type IyzicoCheckoutInput = {
 
 export type IyzicoPayment = {
   status?: string;
+  errorCode?: string;
   errorMessage?: string;
   paymentPageUrl?: string;
+  payWithIyzicoPageUrl?: string;
   token?: string;
   paymentStatus?: string;
   paymentId?: string;
   conversationId?: string;
   basketId?: string;
 };
+
+export class IyzicoRequestError extends Error {
+  errorCode?: string;
+}
 
 type HeaderBag = Record<string, string | string[] | undefined>;
 
@@ -44,7 +50,7 @@ function cleanKey(value: string) {
 }
 
 export function iyzicoConfig() {
-  if (process.env.NODE_ENV === "development") dotenv.config({ override: true });
+  if (process.env.NODE_ENV === "development") dotenv.config({ override: true, quiet: true });
   const apiKey = cleanKey(process.env.IYZICO_API_KEY ?? "");
   const secretKey = cleanKey(process.env.IYZICO_SECRET_KEY ?? "");
   const sandbox = apiKey.toLowerCase().startsWith("sandbox-");
@@ -101,6 +107,15 @@ function splitName(full: string) {
   return { name: parts[0], surname: parts.slice(1).join(" ") };
 }
 
+export function hostedCheckoutUrl(token: string, baseUrl: string) {
+  const page = baseUrl.includes("sandbox") ? "https://sandbox-cpp.iyzipay.com" : "https://cpp.iyzipay.com";
+  return `${page}?token=${encodeURIComponent(token)}&lang=tr`;
+}
+
+function httpUrl(value: string | undefined) {
+  return value && /^https?:\/\//i.test(value) ? value : "";
+}
+
 function stamp(date = new Date()) {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
@@ -122,11 +137,13 @@ async function iyzicoRequest(path: string, body: Record<string, unknown>) {
       Accept: "application/json",
     },
     body: payload,
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(20000),
   });
   const data = (await response.json().catch(() => null)) as IyzicoPayment | null;
   if (!data || data.status !== "success") {
-    throw new Error(data?.errorMessage || `iyzico yanıtı alınamadı (${response.status})`);
+    const failure = new IyzicoRequestError(data?.errorMessage || `iyzico yanıtı alınamadı (${response.status})`);
+    failure.errorCode = data?.errorCode;
+    throw failure;
   }
   return data;
 }
@@ -175,8 +192,11 @@ export async function initializeCheckout(input: IyzicoCheckoutInput) {
       price: lira(item.priceCents),
     })),
   });
-  if (!data.paymentPageUrl || !data.token) throw new Error("iyzico ödeme sayfası dönmedi");
-  return { url: data.paymentPageUrl, token: data.token };
+  const { baseUrl } = iyzicoConfig();
+  const url = httpUrl(data.paymentPageUrl) || httpUrl(data.payWithIyzicoPageUrl) || (data.token ? hostedCheckoutUrl(data.token, baseUrl) : "");
+  if (!url) throw new Error("iyzico ödeme sayfası dönmedi");
+  console.log("[iyzico] ödeme sayfası hazır", input.orderNumber);
+  return { url, token: data.token ?? "" };
 }
 
 export async function retrieveCheckout(token: string, conversationId: string) {

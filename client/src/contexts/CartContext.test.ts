@@ -28,6 +28,13 @@ describe("reconcileCart", () => {
     expect(result.items).toEqual([]);
   });
 
+  it("keeps the piece being paid for even after it is held", () => {
+    const items = [line(1, "Radyo")];
+    const result = reconcileCart(items, [{ ...line(1, "Radyo"), isAvailable: 0 }], false, new Set([1]));
+    expect(result.removed).toEqual([]);
+    expect(result.items).toHaveLength(1);
+  });
+
   it("keeps a held product when the shopper just cancelled payment", () => {
     const items = [line(1)];
     const result = reconcileCart(items, [{ ...line(1), isAvailable: 0 }], true);

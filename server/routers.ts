@@ -203,9 +203,13 @@ export const appRouter = router({
           await updateProductsAvailability(selected.map((product) => product.id), 1);
           await updateOrder(order.id, { status: "cancelled" });
           const detail = error instanceof Error ? error.message : "";
-          console.error("[iyzico] checkout failed", detail);
+          const errorCode = error instanceof Error && "errorCode" in error ? String((error as { errorCode?: string }).errorCode ?? "") : "";
+          console.error("[iyzico] checkout failed", errorCode, detail);
           if (/api key|secret key|authorization|imza|signature|api bilgileri/i.test(detail)) {
             throw new TRPCError({ code: "PRECONDITION_FAILED", message: `iyzico bu anahtarı tanımıyor. ${iyzicoStatusLine()} Ayarlar → Firma Ayarları → API Anahtarları → Görüntüle. API Anahtarı satırı IYZICO_API_KEY, Güvenlik Anahtarı satırı IYZICO_SECRET_KEY olmalı. Tırnak koyma. Kaydedince ödemeyi tekrar dene.` });
+          }
+          if (/aborted|timeout/i.test(detail)) {
+            throw new TRPCError({ code: "TIMEOUT", message: "iyzico yanıt vermedi. Ödemeyi tekrar dene." });
           }
           if (detail && detail.length < 180 && !/iyzico anahtarı yok/.test(detail)) {
             throw new TRPCError({ code: "BAD_REQUEST", message: `Ödeme sayfası açılamadı. ${detail}` });

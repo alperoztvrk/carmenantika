@@ -15,13 +15,15 @@ export type CartLine = CartProduct & { expiresAt: number };
 
 export type CartCatalogProduct = CartProduct & { isAvailable: number };
 
-export function reconcileCart(items: CartLine[], products: CartCatalogProduct[], keepHeld: boolean) {
+export function reconcileCart(items: CartLine[], products: CartCatalogProduct[], keepHeld: boolean, protectIds?: ReadonlySet<number>) {
   const byId = new Map(products.map((product) => [product.id, product]));
   let changed = false;
   const removed: CartLine[] = [];
   const next = items.flatMap((item) => {
     const product = byId.get(item.id);
-    if (!product || (product.isAvailable !== 1 && !keepHeld)) {
+    const protectedLine = protectIds?.has(item.id) ?? false;
+    if (protectedLine && !product) return [item];
+    if (!product || (product.isAvailable !== 1 && !keepHeld && !protectedLine)) {
       changed = true;
       removed.push(item);
       return [];
@@ -55,6 +57,8 @@ type CartContextValue = {
   removeItem: (productId: number) => void;
   clear: () => void;
   hasItem: (productId: number) => boolean;
+  beginCheckoutHold: (productIds: number[]) => void;
+  endCheckoutHold: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -84,6 +88,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const announced = useRef("");
+  const protectRef = useRef<Set<number>>(new Set());
+  const [protectVersion, setProtectVersion] = useState(0);
+  const beginCheckoutHold = (productIds: number[]) => {
+    protectRef.current = new Set(productIds);
+    setProtectVersion((version) => version + 1);
+  };
+  const endCheckoutHold = () => {
+    if (protectRef.current.size === 0) return;
+    protectRef.current = new Set();
+    setProtectVersion((version) => version + 1);
+  };
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -96,7 +111,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const known = current.filter((item) => requested.has(item.id));
     const extra = current.filter((item) => !requested.has(item.id));
     const keepHeld = Boolean(new URLSearchParams(window.location.search).get("iptal"));
-    const result = reconcileCart(known, present.data, keepHeld);
+    const result = reconcileCart(known, present.data, keepHeld, protectRef.current);
     const next = extra.length > 0 ? [...result.items, ...extra] : result.items;
     const same = next.length === current.length && next.every((item, index) => item === current[index]);
     if (!same) setItems(next);
@@ -108,7 +123,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (announced.current === signature) return;
     announced.current = signature;
     toast(result.removed.length === 1 ? `${result.removed[0].name} artık yok. Çantadan çıkarıldı.` : "Artık satılmayan parçalar çantadan çıkarıldı.");
-  }, [ids, present.data, present.isFetching]);
+  }, [ids, present.data, present.isFetching, protectVersion]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -128,6 +143,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     removeItem: (productId) => setItems((current) => current.filter((item) => item.id !== productId)),
     clear: () => setItems([]),
     hasItem: (productId) => items.some((item) => item.id === productId),
+    beginCheckoutHold,
+    endCheckoutHold,
   }), [items]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

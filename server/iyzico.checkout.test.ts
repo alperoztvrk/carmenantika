@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { patchLocalProduct } from "./localCatalog";
 import { appRouter } from "./routers";
-import { iyzicoConfig } from "./iyzico";
+import { hostedCheckoutUrl, iyzicoConfig } from "./iyzico";
 import { completeIyzicoCheckout } from "./iyzicoCallback";
 
 const savedEnv = {
@@ -122,6 +122,15 @@ describe("iyzico checkout", () => {
     expect(paid?.status).toBe("paid");
     const present = await caller().product.present({ ids: [9001] });
     expect(present[0]?.isAvailable).toBe(0);
+  });
+
+  it("opens the hosted page from the token when iyzico omits paymentPageUrl", async () => {
+    process.env.IYZICO_API_KEY = "sandbox-key";
+    process.env.IYZICO_SECRET_KEY = "sandbox-secret";
+    globalThis.fetch = async () => Response.json({ status: "success", token: "tok only" });
+    const started = await caller().order.createCheckout(checkoutInput);
+    expect(started.url).toBe(hostedCheckoutUrl("tok only", "https://sandbox-api.iyzipay.com"));
+    expect(started.url).toContain("token=tok%20only");
   });
 
   it("cancels the pending order when iyzico reports a failed payment", async () => {

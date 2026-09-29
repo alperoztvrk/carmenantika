@@ -31,13 +31,13 @@ export default function Home() {
             </motion.div>
           </HeroEnter>
           <div className="hero-visual" data-parallax="0.05">
-            <motion.div className="hero-photo" initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.95, delay: 0.16, ease }}>
+            <motion.div className="hero-photo" initial={{ y: 18 }} animate={{ y: 0 }} transition={{ duration: 0.7, delay: 0.08, ease }}>
               <img src="/photos/hero-stall.jpg" alt="Bit pazarında eski eşyaların dizildiği tezgâh" />
             </motion.div>
-            <motion.div className="hero-stamp" initial={{ opacity: 0, scale: 0.9, rotate: 4 }} animate={{ opacity: 1, scale: 1, rotate: 12 }} transition={{ duration: 0.75, delay: 0.55, ease }}>
+            <motion.div className="hero-stamp" initial={{ scale: 0.92, rotate: 6 }} animate={{ scale: 1, rotate: 12 }} transition={{ duration: 0.7, delay: 0.2, ease }}>
               <span>One of<br />a kind<br />objects</span>
             </motion.div>
-            <motion.div className="hero-caption" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, delay: 0.72, ease }}>
+            <motion.div className="hero-caption" initial={{ y: 12 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.16, ease }}>
               <p>Bir ev, seçtiği parçalar kadar kendisidir.</p>
               <small>— Carmen Antika notları, no. 01</small>
             </motion.div>

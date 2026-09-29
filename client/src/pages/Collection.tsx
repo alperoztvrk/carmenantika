@@ -44,7 +44,7 @@ export default function Collection() {
       </section>
       <section className="catalog-shell">
         <div className="container-carmen">
-          <motion.div className="catalog-toolbar" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.34, ease }}>
+          <motion.div className="catalog-toolbar" initial={{ y: 12 }} animate={{ y: 0 }} transition={{ duration: 0.5, delay: 0.08, ease }}>
             <div className="catalog-filters">
               <SlidersHorizontal size={15} />
               <span>Filtrele</span>
@@ -79,8 +79,8 @@ export default function Collection() {
                 {products.map((product, index) => (
                   <motion.div
                     key={product.id}
-                    initial={{ opacity: 0, y: 28 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ y: 16 }}
+                    whileInView={{ y: 0 }}
                     viewport={{ once: true, amount: 0.2, margin: "0px 0px -8% 0px" }}
                     transition={{ duration: 0.8, delay: (index % 4) * 0.09, ease }}
                   >

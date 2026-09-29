@@ -74,13 +74,13 @@ export function StoreHeader() {
 
   return (
     <MotionConfig reducedMotion="never">
-      <motion.div className="topline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.55, ease }}>
+      <div className="topline">
         <div className="container-carmen topline-inner">
           <span>Antalya'dan dünyanın her yerine</span>
           <span>Her parçanın bir hikâyesi var · keşfetmeye başla</span>
         </div>
-      </motion.div>
-      <motion.header className="site-header" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7, delay: 0.08, ease }}>
+      </div>
+      <header className="site-header">
         <div className="container-carmen header-main">
           <nav className="nav-links" aria-label="Ana menü">
             <Link href="/koleksiyon" className={location.startsWith("/koleksiyon") || location.startsWith("/urun") ? "is-current" : ""}>
@@ -151,7 +151,7 @@ export function StoreHeader() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.header>
+      </header>
       {cartOpen && <div className="cart-drawer-overlay" onClick={closeCart} />}
       <MotionConfig reducedMotion="never">
         <AnimatePresence onExitComplete={finishCartExit}>

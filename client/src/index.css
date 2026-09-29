@@ -188,12 +188,11 @@ a { color: inherit; text-decoration: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 .reveal { animation: reveal 1.05s var(--ease-soft) both; }
-@keyframes reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes reveal { from { transform: translateY(18px); } to { transform: translateY(0); } }
 .reveal-on-scroll, .motion-reveal, .motion-stagger { opacity: 1; transform: none; }
 .has-motion .reveal-on-scroll:not(.is-visible),
 .has-motion .motion-reveal:not(.is-in) {
-  opacity: 0;
-  transform: translate3d(0, var(--reveal-y, 42px), 0);
+  transform: translate3d(0, var(--reveal-y, 18px), 0);
   transition: none;
 }
 html.scroll-up { --reveal-y: -46px; }
@@ -202,7 +201,7 @@ html.scroll-down, html { --reveal-y: 44px; }
 .has-motion .motion-reveal.is-in {
   opacity: 1;
   transform: none;
-  transition: opacity .9s var(--ease-soft), transform 1.05s var(--ease-soft);
+  transition: transform 1.05s var(--ease-soft);
   transition-delay: var(--d, var(--reveal-delay, 0ms));
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
@@ -264,15 +263,13 @@ html.scroll-down, html { --reveal-y: 44px; }
 /* Multi-page storefront motion and content surfaces */
 .page-stage { min-height: 60vh; }
 .enter-from-bar { animation: from-bar 1.05s var(--ease-soft) both; transform-origin: top center; }
-@keyframes from-bar { from { opacity: 0; transform: translateY(-72px); } to { opacity: 1; transform: none; } }
+@keyframes from-bar { from { transform: translateY(-24px); } to { transform: none; } }
 .has-motion .scroll-stage:not(.is-in) {
-  opacity: 0;
-  transform: translate3d(0, var(--reveal-y, 72px), 0);
+  transform: translate3d(0, var(--reveal-y, 18px), 0);
 }
 .has-motion .scroll-stage.is-in {
-  opacity: 1;
   transform: none;
-  transition: opacity 1.05s var(--ease-soft), transform 1.2s var(--ease-soft);
+  transition: transform 1.05s var(--ease-soft);
 }
 .hero-only { min-height: calc(100svh - 116px); display: grid; align-items: center; padding-top: 46px; }
 .hero-portal { border-top: 1px solid rgba(111, 83, 56, .18); background: var(--paper); }
@@ -565,14 +562,12 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
 }
 
 .has-motion .motion-stagger:not(.is-in) > *:not(.split-lines) {
-  opacity: 0;
-  transform: translate3d(0, var(--reveal-y, 32px), 0);
+  transform: translate3d(0, var(--reveal-y, 16px), 0);
   transition: none;
 }
 .has-motion .motion-stagger.is-in > *:not(.split-lines) {
-  opacity: 1;
   transform: none;
-  transition: opacity .85s var(--ease-soft), transform 1s var(--ease-soft);
+  transition: transform 1s var(--ease-soft);
 }
 .has-motion .motion-stagger.is-in > *:nth-child(2) { transition-delay: 90ms; }
 .has-motion .motion-stagger.is-in > *:nth-child(3) { transition-delay: 170ms; }
@@ -586,8 +581,7 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
 .has-motion .split-lines > span { display: block; }
 .has-motion .split-lines:not(.is-in) > span,
 .has-motion .motion-stagger:not(.is-in) .split-lines > span {
-  opacity: 0;
-  transform: translate3d(0, var(--reveal-y, 28px), 0);
+  transform: translate3d(0, var(--reveal-y, 16px), 0);
 }
 .has-motion .split-lines.is-in > span,
 .has-motion .motion-stagger.is-in .split-lines > span,
@@ -613,7 +607,7 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
 .has-motion .motion-stagger.is-in .split-lines > span:nth-child(2) { animation-delay: 120ms; }
 .has-motion .split-lines.is-in > span:nth-child(3),
 .has-motion .motion-stagger.is-in .split-lines > span:nth-child(3) { animation-delay: 220ms; }
-@keyframes line-rise { from { opacity: 0; transform: translate3d(0, var(--reveal-y, 28px), 0); } to { opacity: 1; transform: none; } }
+@keyframes line-rise { from { transform: translate3d(0, var(--reveal-y, 16px), 0); } to { transform: none; } }
 .has-motion .motion-clip:not(.is-in) {
   clip-path: inset(12% 8% 14% 8%);
   transform: translate3d(0, 20px, 0);

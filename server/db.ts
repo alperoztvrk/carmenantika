@@ -12,7 +12,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, removeLocalProduct, saveLocalProduct } from "./localCatalog";
-import { findLocalOrder, findLocalOrderByNumber, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
+import { findLocalOrder, findLocalOrderByNumber, findLocalOrderBySession, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -164,6 +164,15 @@ export async function getOrderById(id: number) {
   const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!result[0]) return undefined;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
+  return { ...result[0], items };
+}
+
+export async function getOrderByCheckoutSession(sessionId: string) {
+  const db = await getDb();
+  if (!db) return findLocalOrderBySession(sessionId);
+  const result = await db.select().from(orders).where(eq(orders.stripeCheckoutSessionId, sessionId)).limit(1);
+  if (!result[0]) return undefined;
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, result[0].id));
   return { ...result[0], items };
 }
 

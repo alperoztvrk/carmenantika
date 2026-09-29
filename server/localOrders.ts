@@ -72,6 +72,11 @@ export function findLocalOrderByNumber(orderNumber: string) {
   return order ? withItems(order) : undefined;
 }
 
+export function findLocalOrderBySession(sessionId: string) {
+  const order = memoryOrders.find((entry) => entry.stripeCheckoutSessionId === sessionId);
+  return order ? withItems(order) : undefined;
+}
+
 export function readLocalOrders(userId?: number) {
   releaseStaleLocalOrders();
   return memoryOrders

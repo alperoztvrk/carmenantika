@@ -1,4 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 export type CartProduct = {
   id: number;
@@ -10,6 +12,41 @@ export type CartProduct = {
 };
 
 export type CartLine = CartProduct & { expiresAt: number };
+
+export type CartCatalogProduct = CartProduct & { isAvailable: number };
+
+export function reconcileCart(items: CartLine[], products: CartCatalogProduct[], keepHeld: boolean) {
+  const byId = new Map(products.map((product) => [product.id, product]));
+  let changed = false;
+  const removed: CartLine[] = [];
+  const next = items.flatMap((item) => {
+    const product = byId.get(item.id);
+    if (!product || (product.isAvailable !== 1 && !keepHeld)) {
+      changed = true;
+      removed.push(item);
+      return [];
+    }
+    const updated: CartLine = {
+      ...item,
+      slug: product.slug,
+      name: product.name,
+      priceCents: product.priceCents,
+      imageUrl: product.imageUrl,
+      shortDescription: product.shortDescription,
+    };
+    if (
+      updated.slug !== item.slug
+      || updated.name !== item.name
+      || updated.priceCents !== item.priceCents
+      || updated.imageUrl !== item.imageUrl
+      || updated.shortDescription !== item.shortDescription
+    ) {
+      changed = true;
+    }
+    return [updated];
+  });
+  return { items: changed ? next : items, removed };
+}
 
 type CartContextValue = {
   items: CartLine[];
@@ -42,10 +79,36 @@ function readCart(): CartLine[] {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartLine[]>(readCart);
+  const ids = useMemo(() => items.map((item) => item.id), [items]);
+  const present = trpc.product.present.useQuery({ ids }, { enabled: ids.length > 0, refetchInterval: 4000 });
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const announced = useRef("");
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    if (!present.data || ids.length === 0 || present.isFetching) return;
+    const requested = new Set(ids);
+    const current = itemsRef.current;
+    const known = current.filter((item) => requested.has(item.id));
+    const extra = current.filter((item) => !requested.has(item.id));
+    const keepHeld = Boolean(new URLSearchParams(window.location.search).get("iptal"));
+    const result = reconcileCart(known, present.data, keepHeld);
+    const next = extra.length > 0 ? [...result.items, ...extra] : result.items;
+    const same = next.length === current.length && next.every((item, index) => item === current[index]);
+    if (!same) setItems(next);
+    const signature = result.removed.map((item) => item.id).join(",");
+    if (!signature) {
+      announced.current = "";
+      return;
+    }
+    if (announced.current === signature) return;
+    announced.current = signature;
+    toast(result.removed.length === 1 ? `${result.removed[0].name} artık yok. Çantadan çıkarıldı.` : "Artık satılmayan parçalar çantadan çıkarıldı.");
+  }, [ids, present.data, present.isFetching]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {

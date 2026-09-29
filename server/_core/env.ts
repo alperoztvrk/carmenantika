@@ -10,4 +10,7 @@ export const ENV = {
   stripeSecretKey: (process.env.STRIPE_SECRET_KEY ?? "").trim(),
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   stripePublishableKey: process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "",
+  iyzicoApiKey: (process.env.IYZICO_API_KEY ?? "").trim(),
+  iyzicoSecretKey: (process.env.IYZICO_SECRET_KEY ?? "").trim(),
+  iyzicoBaseUrl: ((process.env.IYZICO_BASE_URL ?? "").trim() || "https://sandbox-api.iyzipay.com").replace(/\/$/, ""),
 };

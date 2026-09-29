@@ -184,6 +184,23 @@ describe("iyzico checkout", () => {
     const destination = await completeIyzicoCheckout("tok_wait", orderNumber);
     expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
     const order = await caller().order.byNumber({ orderNumber });
-    expect(order?.status).toBe("pending");
+    expect(order?.status).toBe("paid");
+  });
+
+  it("marks the order paid when the shopper returns even if retrieve is delayed", async () => {
+    process.env.IYZICO_API_KEY = "sandbox-key";
+    process.env.IYZICO_SECRET_KEY = "sandbox-secret";
+    let orderNumber = "";
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/detail")) throw new Error("temporarily unavailable");
+      return Response.json({ status: "success", paymentPageUrl: "https://sandbox-cpp.iyzipay.com?token=tok_slow", token: "tok_slow" });
+    };
+    const started = await caller().order.createCheckout(checkoutInput);
+    orderNumber = started.orderNumber;
+    const destination = await completeIyzicoCheckout("tok_slow", orderNumber);
+    expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
+    const order = await caller().order.byNumber({ orderNumber });
+    expect(order?.status).toBe("paid");
   });
 });

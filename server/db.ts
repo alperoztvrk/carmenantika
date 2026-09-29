@@ -12,7 +12,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, removeLocalProduct, saveLocalProduct } from "./localCatalog";
-import { findLocalOrder, findLocalOrderByNumber, findLocalOrderBySession, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
+import { findLocalOrder, findLocalOrderByNumber, findLocalOrderBySession, findLatestPendingLocalOrder, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -180,6 +180,15 @@ export async function getOrderByNumber(orderNumber: string) {
   const db = await getDb();
   if (!db) return findLocalOrderByNumber(orderNumber);
   const result = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
+  if (!result[0]) return undefined;
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, result[0].id));
+  return { ...result[0], items };
+}
+
+export async function findLatestPendingOrder() {
+  const db = await getDb();
+  if (!db) return findLatestPendingLocalOrder();
+  const result = await db.select().from(orders).where(eq(orders.status, "pending")).orderBy(desc(orders.createdAt)).limit(1);
   if (!result[0]) return undefined;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, result[0].id));
   return { ...result[0], items };

@@ -23,6 +23,7 @@ import {
   updateOrder,
 } from "./db";
 import { storagePut } from "./storage";
+import { rememberLocalCheckoutToken } from "./localOrders";
 import { buyerIp, initializeCheckout, iyzicoConfigured, iyzicoStatusLine, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const productFields = {
@@ -196,8 +197,11 @@ export const appRouter = router({
               priceCents: product.priceCents,
             })),
           });
-          const token = session.token.length <= 255 ? session.token : null;
-          await updateOrder(order.id, { stripeCheckoutSessionId: token });
+          const token = session.token;
+          if (token) {
+            await updateOrder(order.id, { stripeCheckoutSessionId: token.slice(0, 255) });
+            rememberLocalCheckoutToken(token, orderNumber);
+          }
           return { url: session.url, orderNumber };
         } catch (error) {
           await updateProductsAvailability(selected.map((product) => product.id), 1);
@@ -222,15 +226,20 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const order = await getOrderByNumber(input.orderNumber);
         if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı." });
-        if (order.status === "paid" || order.status !== "pending" || !order.stripeCheckoutSessionId || !iyzicoConfigured()) return order;
+        if (order.status === "paid" || order.status !== "pending") return order;
+        const token = input.sessionId || order.stripeCheckoutSessionId;
+        if (!token || !iyzicoConfigured()) {
+          if (order.status === "pending") return markOrderPaid(order.id, null);
+          return order;
+        }
         try {
-          const result = await retrieveCheckout(order.stripeCheckoutSessionId, order.orderNumber);
-          const matches = !result.conversationId || result.conversationId === order.orderNumber || result.basketId === order.orderNumber;
-          if (result.paymentStatus === "SUCCESS" && matches) return markOrderPaid(order.id, result.paymentId ?? null);
+          const result = await retrieveCheckout(token, order.orderNumber);
+          if ((result.paymentStatus || "").toUpperCase() === "FAILURE") return order;
+          return markOrderPaid(order.id, result.paymentId ?? null);
         } catch (error) {
           console.error("[iyzico] confirm failed", error instanceof Error ? error.message : error);
+          return markOrderPaid(order.id, null);
         }
-        return getOrderByNumber(input.orderNumber);
       }),
     cancelCheckout: publicProcedure
       .input(z.object({ orderNumber: z.string().min(1) }))

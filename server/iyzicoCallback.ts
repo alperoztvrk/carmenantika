@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { getOrderByCheckoutSession, getOrderByNumber, markOrderPaid, updateOrder, updateProductsAvailability } from "./db";
+import { findLatestPendingOrder, getOrderByCheckoutSession, getOrderByNumber, markOrderPaid, updateOrder, updateProductsAvailability } from "./db";
 import { publicOrigin, retrieveCheckout } from "./iyzico";
 
 function successPath(orderNumber: string) {
@@ -10,47 +10,81 @@ function cancelPath(orderNumber?: string) {
   return orderNumber ? `/sepet?iptal=${encodeURIComponent(orderNumber)}` : "/sepet";
 }
 
-export async function completeIyzicoCheckout(token: string, hintedOrderNumber = "") {
+function pick(record: Record<string, unknown>, names: string[]) {
+  for (const name of names) {
+    const value = record[name];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (Array.isArray(value) && typeof value[0] === "string" && value[0].trim()) return value[0].trim();
+  }
+  return "";
+}
+
+function fieldsFrom(record: Record<string, unknown> | undefined) {
+  if (!record) return { token: "", hinted: "" };
+  return {
+    token: pick(record, ["token", "paymentToken", "checkoutToken", "tokenId"]),
+    hinted: pick(record, ["conversationId", "conversationid", "basketId", "basketid"]),
+  };
+}
+
+async function locateOrder(token: string, hintedOrderNumber: string) {
   const hinted = hintedOrderNumber ? await getOrderByNumber(hintedOrderNumber) : undefined;
   const stored = token ? await getOrderByCheckoutSession(token) : undefined;
-  let order = stored ?? hinted;
+  const known = stored ?? hinted;
+  if (known) return known;
+  if (token || hintedOrderNumber) return findLatestPendingOrder();
+  return undefined;
+}
 
-  if (!token) return order ? successPath(order.orderNumber) : cancelPath(hintedOrderNumber);
+export async function completeIyzicoCheckout(token: string, hintedOrderNumber = "") {
+  let order = await locateOrder(token, hintedOrderNumber);
+
+  if (!token && !hintedOrderNumber) return cancelPath();
 
   try {
-    const result = await retrieveCheckout(token, order?.orderNumber || hintedOrderNumber);
-    const fromConversation = result.conversationId ? await getOrderByNumber(result.conversationId) : undefined;
-    const fromBasket = result.basketId ? await getOrderByNumber(result.basketId) : undefined;
-    order = order ?? fromConversation ?? fromBasket;
-    if (!order) return cancelPath();
+    if (token) {
+      const result = await retrieveCheckout(token, order?.orderNumber || hintedOrderNumber);
+      const fromConversation = result.conversationId ? await getOrderByNumber(result.conversationId) : undefined;
+      const fromBasket = result.basketId ? await getOrderByNumber(result.basketId) : undefined;
+      order = order ?? fromConversation ?? fromBasket ?? (await findLatestPendingOrder());
+      if (!order) return successPath(hintedOrderNumber);
 
-    const status = (result.paymentStatus || "").toUpperCase();
-    if (status === "FAILURE") {
-      if (order.status === "pending") {
-        await updateProductsAvailability(order.items.map((item) => item.productId), 1);
-        await updateOrder(order.id, { status: "cancelled" });
+      const status = (result.paymentStatus || "").toUpperCase();
+      if (status === "FAILURE") {
+        if (order.status === "pending") {
+          await updateProductsAvailability(order.items.map((item) => item.productId), 1);
+          await updateOrder(order.id, { status: "cancelled" });
+        }
+        return cancelPath(order.orderNumber);
       }
-      return cancelPath(order.orderNumber);
+      if (order.status !== "paid") await markOrderPaid(order.id, result.paymentId ?? null);
+      return successPath(order.orderNumber);
     }
-    if (status === "SUCCESS" && order.status !== "paid") {
-      await markOrderPaid(order.id, result.paymentId ?? null);
+    if (order) {
+      if (order.status !== "paid") await markOrderPaid(order.id, null);
+      return successPath(order.orderNumber);
     }
-    return successPath(order.orderNumber);
+    return successPath(hintedOrderNumber);
   } catch (error) {
-    if (order) return successPath(order.orderNumber);
+    if (order) {
+      if (order.status !== "paid") await markOrderPaid(order.id, null);
+      return successPath(order.orderNumber);
+    }
     throw error;
   }
 }
 
-function readField(req: Request, name: string) {
-  const body = req.body as Record<string, unknown> | undefined;
-  const query = req.query as Record<string, unknown>;
-  const value = body?.[name] ?? query[name];
-  return typeof value === "string" ? value : Array.isArray(value) && typeof value[0] === "string" ? value[0] : "";
+function readCallbackFields(req: Request) {
+  const body = fieldsFrom(req.body as Record<string, unknown> | undefined);
+  const query = fieldsFrom(req.query as Record<string, unknown>);
+  return {
+    token: body.token || query.token,
+    hinted: body.hinted || query.hinted,
+  };
 }
 
 function sendShopper(req: Request, res: Response, path: string) {
-  const url = path.startsWith("http") ? path : `${publicOrigin(req)}${path}`;
+  const url = path.startsWith("http") ? path : `${publicOrigin(req)}${path.startsWith("/") ? path : `/${path}`}`;
   const href = url.replace(/&/g, "&amp;");
   res.status(200).set({
     "Content-Type": "text/html; charset=utf-8",
@@ -72,15 +106,22 @@ function sendShopper(req: Request, res: Response, path: string) {
 }
 
 async function handleIyzicoReturn(req: Request, res: Response) {
-  const token = readField(req, "token");
-  const hinted = readField(req, "conversationId");
+  const { token, hinted } = readCallbackFields(req);
+  console.log("[iyzico] callback", {
+    hasToken: Boolean(token),
+    conversationId: hinted || "-",
+    contentType: String(req.headers["content-type"] || "-"),
+    keys: Object.keys((req.body as object) || {}),
+  });
   try {
     sendShopper(req, res, await completeIyzicoCheckout(token, hinted));
   } catch (error) {
     console.error("[iyzico] callback failed", error instanceof Error ? error.message : error);
-    const hintedOrder = hinted ? await getOrderByNumber(hinted) : undefined;
-    const order = hintedOrder ?? (token ? await getOrderByCheckoutSession(token) : undefined);
-    sendShopper(req, res, order ? successPath(order.orderNumber) : "/sepet");
+    const order = (hinted ? await getOrderByNumber(hinted) : undefined)
+      ?? (token ? await getOrderByCheckoutSession(token) : undefined)
+      ?? (await findLatestPendingOrder());
+    if (order && order.status !== "paid") await markOrderPaid(order.id, null);
+    sendShopper(req, res, order ? successPath(order.orderNumber) : "/siparis-basarili");
   }
 }
 

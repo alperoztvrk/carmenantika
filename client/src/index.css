@@ -406,8 +406,10 @@ html.scroll-down, html { --reveal-y: 44px; }
 .success-items { list-style: none; margin: 18px 0 0; padding: 0; border: 1px solid var(--border); background: var(--paper); text-align: left; }
 .success-items li { display: flex; justify-content: space-between; gap: 16px; padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--ink); font-size: 13px; }
 .success-items li:last-child { border-bottom: 0; }
+.success-items .success-total { border-top: 1px solid var(--border); font-weight: 600; }
 .success-items b { color: var(--terracotta); font-size: 12px; font-weight: 600; }
-.success-ship { margin: 16px 0 0; color: var(--muted-foreground); font-size: 12px; }
+.success-ship { display: grid; gap: 4px; margin: 18px 0 0; border: 1px solid var(--border); background: var(--paper); padding: 16px; text-align: left; color: var(--muted-foreground); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.success-ship strong, .success-ship em { color: var(--ink); font-size: 13px; letter-spacing: 0; text-transform: none; font-style: normal; font-weight: 500; }
 .success-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 .orders-heading p { margin: -35px 0 48px; color: var(--muted-foreground); }
 .orders-list { border-top: 1px solid var(--border); }

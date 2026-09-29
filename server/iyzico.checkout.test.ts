@@ -94,6 +94,7 @@ describe("iyzico checkout", () => {
         price: string;
         paidPrice: string;
         callbackUrl: string;
+        enabledInstallments?: number[];
         buyer: { gsmNumber: string; email: string; identityNumber: string; ip: string };
         basketItems: { price: string }[];
       };
@@ -106,6 +107,7 @@ describe("iyzico checkout", () => {
       expect(body.buyer.identityNumber).toBe("11111111111");
       expect(body.buyer.ip).toBe("85.34.78.112");
       expect(body.callbackUrl).toBe("http://localhost:3000/api/iyzico/callback");
+      expect(body.enabledInstallments).toBeUndefined();
       return Response.json({ status: "success", paymentPageUrl: "https://sandbox-cpp.iyzipay.com?token=tok_test", token: "tok_test" });
     };
 
@@ -131,6 +133,18 @@ describe("iyzico checkout", () => {
     const started = await caller().order.createCheckout(checkoutInput);
     expect(started.url).toBe(hostedCheckoutUrl("tok only", "https://sandbox-api.iyzipay.com"));
     expect(started.url).toContain("token=tok%20only");
+  });
+
+  it("uses payWithIyzicoPageUrl when paymentPageUrl is missing", async () => {
+    process.env.IYZICO_API_KEY = "sandbox-key";
+    process.env.IYZICO_SECRET_KEY = "sandbox-secret";
+    globalThis.fetch = async () => Response.json({
+      status: "success",
+      token: "tok_pwi",
+      payWithIyzicoPageUrl: "https://sandbox-pwi.iyzipay.com/checkout?token=tok_pwi",
+    });
+    const started = await caller().order.createCheckout(checkoutInput);
+    expect(started.url).toBe("https://sandbox-pwi.iyzipay.com/checkout?token=tok_pwi");
   });
 
   it("cancels the pending order when iyzico reports a failed payment", async () => {

@@ -180,7 +180,6 @@ export async function initializeCheckout(input: IyzicoCheckoutInput) {
     basketId: input.orderNumber,
     paymentGroup: "PRODUCT",
     callbackUrl: input.callbackUrl,
-    enabledInstallments: [1, 2, 3, 6, 9],
     buyer,
     shippingAddress: shipping,
     billingAddress: shipping,

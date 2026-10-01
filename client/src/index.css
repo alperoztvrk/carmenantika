@@ -382,7 +382,8 @@ html.scroll-down, html { --reveal-y: 44px; }
 .checkout-item > button { border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; transition: color .35s ease, transform .35s var(--ease-soft); }
 .checkout-item > button:hover { color: var(--terracotta); transform: translateY(-2px); }
 .checkout-form { background: var(--parchment); padding: 30px; }
-.checkout-form-head h2 { margin: 13px 0 28px; color: var(--ink); font: 500 44px/.85 "Cormorant Garamond", Georgia, serif; letter-spacing: -.06em; }
+.checkout-form-head h2 { margin: 13px 0 12px; color: var(--ink); font: 500 44px/.85 "Cormorant Garamond", Georgia, serif; letter-spacing: -.06em; }
+.checkout-delivery { margin: 0 0 24px; color: var(--terracotta); font-size: 13px; line-height: 1.6; }
 .checkout-form label, .admin-form label { display: grid; gap: 7px; margin-bottom: 17px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
 .checkout-form input, .checkout-form textarea, .admin-form input, .admin-form textarea, .admin-form select { width: 100%; border: 1px solid var(--border); outline: none; background: rgba(255,255,255,.34); padding: 12px; color: var(--ink); font: 13px/1.4 "DM Sans", sans-serif; text-transform: none; letter-spacing: 0; transition: border-color .35s ease, background .35s ease, box-shadow .35s ease; }
 .checkout-form input:focus, .checkout-form textarea:focus, .admin-form input:focus, .admin-form textarea:focus, .admin-form select:focus { border-color: var(--terracotta); background: var(--paper); box-shadow: 0 0 0 3px rgba(169,82,56,.08); }

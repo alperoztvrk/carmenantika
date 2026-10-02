@@ -1,9 +1,9 @@
 import { createContext, useContext } from "react";
-import { useLocation } from "wouter";
 import { StoreFooter } from "@/components/StoreFooter";
 import { StoreHeader } from "@/components/StoreHeader";
 import { useReveal } from "@/hooks/useReveal";
 import { useScrollMotion } from "@/hooks/useScrollMotion";
+
 const LayoutFrame = createContext(false);
 
 export function StoreLayout({ children }: { children: React.ReactNode }) {
@@ -13,17 +13,15 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
 }
 
 function StoreFrame({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
-  const adminPage = location.startsWith("/admin");
   useScrollMotion();
   useReveal();
 
   return (
     <LayoutFrame.Provider value={true}>
-      <div className={`site-shell paper-texture ${adminPage ? "is-admin" : ""}`}>
-        {!adminPage && <StoreHeader />}
+      <div className="site-shell paper-texture">
+        <StoreHeader />
         <main className="page-stage">{children}</main>
-        {!adminPage && <StoreFooter />}
+        <StoreFooter />
       </div>
     </LayoutFrame.Provider>
   );

@@ -421,17 +421,24 @@ html.scroll-down, html { --reveal-y: 44px; }
 .order-row span { margin-top: 5px; color: var(--muted-foreground); font-size: 10px; }
 .order-row b { color: var(--terracotta); font-size: 12px; }
 .order-row em { color: var(--moss); font-size: 10px; font-style: normal; letter-spacing: .1em; text-transform: uppercase; }
-.admin-login { display: grid; place-items: center; min-height: 72vh; padding: 80px 20px; }
-.admin-login-card { width: min(100%, 460px); display: grid; gap: 14px; background: var(--paper); border: 1px solid var(--border); padding: 36px 32px 32px; color: var(--terracotta); }
-.admin-login-card h1 { margin: 0; color: var(--ink); font: 500 64px/.8 "Cormorant Garamond", Georgia, serif; letter-spacing: -.06em; }
-.admin-login-card p { margin: 0; color: var(--muted-foreground); line-height: 1.6; }
-.admin-login-card form { display: grid; gap: 14px; margin-top: 8px; }
-.admin-login-card label { display: grid; gap: 7px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
-.admin-login-card input { width: 100%; border: 1px solid var(--border); background: var(--parchment); padding: 12px; color: var(--ink); font: 15px/1.4 "DM Sans", sans-serif; letter-spacing: 0; text-transform: none; }
-.admin-login-card small { color: var(--muted-foreground); font-size: 12px; letter-spacing: 0; text-transform: none; }
-.admin-login-card small strong { color: var(--terracotta); }
+.admin-gate { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr); gap: clamp(28px, 6vw, 80px); align-items: stretch; min-height: calc(100svh - 180px); padding: 48px 0 88px; }
+.admin-gate-brand { display: grid; align-content: end; gap: 18px; padding: 48px 44px; background: var(--terracotta); color: var(--paper); }
+.admin-gate-brand .eyebrow { color: #f3cc9d; }
+.admin-gate-brand h1 { margin: 0; color: var(--paper); font: 500 clamp(56px, 8vw, 108px)/.78 "Cormorant Garamond", Georgia, serif; letter-spacing: -.07em; }
+.admin-gate-brand h1 em { color: #f3cc9d; font-style: italic; }
+.admin-gate-brand p { max-width: 420px; margin: 0; color: rgba(255,248,235,.86); font-size: 15px; line-height: 1.75; }
+.admin-gate-card { display: grid; align-content: center; gap: 14px; padding: 42px 36px; background: var(--paper); border: 1px solid var(--border); color: var(--terracotta); }
+.admin-gate-card h2 { margin: 0; color: var(--ink); font: 500 clamp(36px, 5vw, 52px)/.86 "Cormorant Garamond", Georgia, serif; letter-spacing: -.05em; }
+.admin-gate-card p { margin: 0; color: var(--muted-foreground); line-height: 1.65; }
+.admin-gate-card form { display: grid; gap: 14px; margin-top: 8px; }
+.admin-gate-card label { display: grid; gap: 7px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+.admin-gate-card input { width: 100%; border: 1px solid var(--border); background: var(--parchment); padding: 14px 12px; color: var(--ink); font: 16px/1.4 "DM Sans", sans-serif; letter-spacing: 0; text-transform: none; }
+.admin-gate-card small { color: var(--muted-foreground); font-size: 12px; letter-spacing: 0; text-transform: none; }
+.admin-gate-card small strong { color: var(--terracotta); }
+.admin-gate-card .outline-cta { justify-self: start; }
 .admin-page { padding: 85px 0 120px; background: var(--paper); }
 .admin-heading { display: flex; justify-content: space-between; align-items: end; gap: 30px; margin-bottom: 55px; }
+.admin-heading-tools { display: grid; justify-items: end; gap: 14px; }
 .admin-heading h1 { margin: 20px 0 15px; color: var(--ink); font: 500 clamp(65px, 9vw, 120px)/.75 "Cormorant Garamond", Georgia, serif; letter-spacing: -.08em; }
 .admin-heading p { max-width: 420px; margin: 0; color: var(--muted-foreground); line-height: 1.6; }
 .admin-stat { display: grid; justify-items: center; border-left: 1px solid var(--border); padding-left: 25px; }
@@ -465,7 +472,7 @@ html.scroll-down, html { --reveal-y: 44px; }
 .admin-product-info span { margin-top: 5px; color: var(--terracotta); font-size: 10px; }
 .admin-product-info small { margin-top: 6px; color: var(--muted-foreground); font-size: 9px; text-transform: uppercase; }
 .admin-row-actions { display: flex; gap: 5px; }
-.admin-row-actions button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; transition: color .3s ease, background .3s ease, transform .35s var(--ease-soft); }
+.admin-row-actions button { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--border); background: transparent; color: var(--muted-foreground); cursor: pointer; transition: color .3s ease, background .3s ease, transform .35s var(--ease-soft); }
 .admin-row-actions button:hover { background: var(--terracotta); color: var(--paper); transform: translateY(-2px); }
 .admin-orders { margin-top: 22px; }
 .admin-order-list { display: grid; gap: 10px; }
@@ -477,11 +484,19 @@ html.scroll-down, html { --reveal-y: 44px; }
 @media (max-width: 900px) {
   .hero-only { min-height: auto; }
   .catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .detail-layout, .checkout-layout, .admin-layout { grid-template-columns: 1fr; }
+  .detail-layout, .checkout-layout, .admin-layout, .admin-gate { grid-template-columns: 1fr; }
   .detail-copy { order: -1; }
   .story-page-intro { grid-template-columns: 1fr; gap: 30px; }
   .story-page-grid { grid-template-columns: 1fr; }
   .admin-layout { gap: 18px; }
+  .admin-gate { min-height: auto; padding: 28px 0 64px; gap: 0; }
+  .admin-gate-brand { padding: 32px 24px 28px; }
+  .admin-gate-card { padding: 28px 22px 26px; }
+  .admin-order-row { grid-template-columns: 1fr auto; }
+  .admin-order-row span { grid-column: 1 / -1; }
+  .checkout-form input, .checkout-form textarea, .admin-form input, .admin-form textarea, .admin-form select, .admin-gate-card input {
+    font-size: 16px;
+  }
 }
 @media (max-width: 600px) {
   .hero-portal-inner, .catalog-hero-inner, .admin-heading { display: block; }
@@ -508,9 +523,11 @@ html.scroll-down, html { --reveal-y: 44px; }
   .order-row { grid-template-columns: 38px 1fr auto; }
   .order-row em { grid-column: 2 / -1; }
   .admin-panel { padding: 18px; }
+  .admin-heading-tools { justify-items: start; width: 100%; margin-top: 8px; }
   .admin-order-row { grid-template-columns: 1fr auto; }
   .admin-order-row span { grid-column: 1 / -1; }
   .admin-order-row em { justify-self: end; }
+  .success-items li { gap: 10px; font-size: 12px; }
 }
 
 /* Direction-aware navigation and scroll choreography */
@@ -726,10 +743,12 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
   .checkout-submit, .detail-add { width: 100%; }
   .detail-actions { display: grid; }
   .admin-stat { justify-items: start; margin-top: 18px; border-left: 0; border-top: 1px solid var(--border); padding: 14px 0 0; }
+  .admin-heading-tools { width: 100%; justify-items: start; }
   .admin-panel-head, .admin-heading { align-items: start; }
   .admin-panel-head { flex-direction: column; }
   .admin-product-row { grid-template-columns: 56px minmax(0, 1fr); }
   .admin-row-actions { grid-column: 2; justify-content: start; }
+  .admin-row-actions button { width: 44px; height: 44px; }
   .footer-grid { grid-template-columns: 1fr; gap: 28px; }
   .search-panel-form { width: 100%; }
   .quick-cart-head h2 { font-size: 36px; }

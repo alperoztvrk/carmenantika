@@ -17,6 +17,7 @@ export type IyzicoCheckoutInput = {
   customerName: string;
   customerPhone: string;
   shippingAddress: string;
+  identityNumber: string;
   ip: string;
   items: IyzicoCheckoutItem[];
 };
@@ -74,12 +75,36 @@ export function lira(cents: number) {
   return (cents / 100).toFixed(2);
 }
 
+export function iyzicoIsSandbox() {
+  return iyzicoConfig().apiKey.toLowerCase().startsWith("sandbox-");
+}
+
+export function isValidTckn(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!/^[1-9]\d{10}$/.test(digits)) return false;
+  const n = digits.split("").map(Number);
+  const odd = n[0] + n[2] + n[4] + n[6] + n[8];
+  const even = n[1] + n[3] + n[5] + n[7];
+  if (((odd * 7) - even) % 10 !== n[9]) return false;
+  return n.slice(0, 10).reduce((sum, digit) => sum + digit, 0) % 10 === n[10];
+}
+
+export function buyerIdentityNumber(value?: string) {
+  const digits = (value ?? "").replace(/\D/g, "");
+  if (iyzicoIsSandbox()) return isValidTckn(digits) ? digits : "11111111111";
+  return isValidTckn(digits) ? digits : "";
+}
+
 export function publicOrigin(req: { protocol?: string; headers: HeaderBag }) {
+  const configured = (process.env.SITE_URL ?? "").trim().replace(/\/$/, "");
+  if (/^https:\/\//i.test(configured)) return configured;
+  if (/^http:\/\//i.test(configured) && process.env.NODE_ENV !== "production") return configured;
   const forwardedProto = req.headers["x-forwarded-proto"];
   const proto = (typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol) || "http";
   const forwardedHost = req.headers["x-forwarded-host"];
   const hostHeader = req.headers.host;
   const host = (typeof forwardedHost === "string" ? forwardedHost.split(",")[0].trim() : typeof hostHeader === "string" ? hostHeader : "") || "localhost:3000";
+  if (process.env.NODE_ENV === "production") return `https://${host}`;
   return `${proto}://${host}`;
 }
 
@@ -161,7 +186,7 @@ export async function initializeCheckout(input: IyzicoCheckoutInput) {
     surname: surname.slice(0, 50),
     gsmNumber: gsm,
     email: `musteri.${digits || "0"}@siparis.carmenantika.com`,
-    identityNumber: "11111111111",
+    identityNumber: input.identityNumber,
     lastLoginDate: now,
     registrationDate: now,
     registrationAddress: address,
@@ -179,6 +204,7 @@ export async function initializeCheckout(input: IyzicoCheckoutInput) {
     currency: "TRY",
     basketId: input.orderNumber,
     paymentGroup: "PRODUCT",
+    enabledInstallments: [1],
     callbackUrl: input.callbackUrl,
     buyer,
     shippingAddress: shipping,

@@ -56,4 +56,10 @@ describe("reconcileCart", () => {
     const result = reconcileCart(items, [{ ...items[0], isAvailable: 1 }], false);
     expect(result.items).toBe(items);
   });
+
+  it("drops lines whose hold has already ended", () => {
+    const items = [line(1), { ...line(2), expiresAt: Date.now() - 10 }];
+    const living = items.filter((item) => item.expiresAt > Date.now());
+    expect(living.map((item) => item.id)).toEqual([1]);
+  });
 });

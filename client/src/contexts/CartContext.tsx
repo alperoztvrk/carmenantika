@@ -72,7 +72,8 @@ export function holdLabel(expiresAt: number, now = Date.now()) {
 
 function readCart(): CartLine[] {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]") as CartLine[];
+    window.localStorage.removeItem(STORAGE_KEY);
+    const stored = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) || "[]") as CartLine[];
     if (!Array.isArray(stored)) return [];
     const now = Date.now();
     return stored.filter((item) => item && typeof item.id === "number" && typeof item.expiresAt === "number" && item.expiresAt > now);
@@ -101,7 +102,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      /* Private mode can block session storage. */
+    }
   }, [items]);
 
   useEffect(() => {

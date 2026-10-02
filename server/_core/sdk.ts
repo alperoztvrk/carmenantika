@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS, decodeOAuthState } from "@shared/const";
 import { ForbiddenError } from "@shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
@@ -153,9 +154,17 @@ class SDKServer {
     return new Map(Object.entries(parsed));
   }
 
+  private generatedSecret = "";
+
   private getSessionSecret() {
-    const secret = ENV.cookieSecret || (ENV.isProduction ? "" : "carmen-local-dev-secret");
-    return new TextEncoder().encode(secret);
+    const fromEnv = ENV.cookieSecret.trim();
+    if (fromEnv) return new TextEncoder().encode(fromEnv);
+    if (!ENV.isProduction) return new TextEncoder().encode("carmen-local-dev-secret");
+    if (!this.generatedSecret) {
+      this.generatedSecret = crypto.randomBytes(32).toString("hex");
+      console.warn("[Auth] JWT_SECRET yok; bu açılış için geçici bir anahtar üretildi. Canlı sitede .env içine JWT_SECRET ekle.");
+    }
+    return new TextEncoder().encode(this.generatedSecret);
   }
 
   /**

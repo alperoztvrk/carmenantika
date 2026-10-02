@@ -1,4 +1,4 @@
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { ADMIN_SESSION_MS, COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -24,7 +24,35 @@ import {
 } from "./db";
 import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
-import { buyerIp, initializeCheckout, iyzicoConfigured, iyzicoStatusLine, publicOrigin, retrieveCheckout } from "./iyzico";
+import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, iyzicoStatusLine, publicOrigin, retrieveCheckout } from "./iyzico";
+
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function localAdminEnabled() {
+  return !ENV.isProduction || Boolean(ENV.localAdminPassword);
+}
+
+function localAdminPassword() {
+  if (ENV.localAdminPassword) return ENV.localAdminPassword;
+  return ENV.isProduction ? "" : "carmen";
+}
+
+function allowLoginAttempt(ip: string) {
+  if (process.env.NODE_ENV === "test") return true;
+  const now = Date.now();
+  const current = loginAttempts.get(ip);
+  if (!current || now >= current.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 });
+    return true;
+  }
+  if (current.count >= 8) return false;
+  current.count += 1;
+  return true;
+}
+
+function clearLoginAttempts(ip: string) {
+  loginAttempts.delete(ip);
+}
 
 const productFields = {
   name: z.string(),
@@ -65,16 +93,29 @@ export const appRouter = router({
       return { success: true } as const;
     }),
     localStatus: publicProcedure.query(() => {
-      const enabled = !ENV.isProduction;
-      return { enabled, passwordHint: enabled && !process.env.LOCAL_ADMIN_PASSWORD ? "carmen" : null };
+      const enabled = localAdminEnabled();
+      return {
+        enabled,
+        live: ENV.isProduction,
+        passwordHint: enabled && !ENV.isProduction && !ENV.localAdminPassword ? "carmen" : null,
+      };
     }),
     localLogin: publicProcedure.input(z.object({ password: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {
-      if (ENV.isProduction) throw new TRPCError({ code: "FORBIDDEN", message: "Yerel giriş yalnızca geliştirme ortamında açık." });
-      const expected = process.env.LOCAL_ADMIN_PASSWORD || "carmen";
-      if (input.password !== expected) throw new TRPCError({ code: "UNAUTHORIZED", message: "Şifre yanlış." });
-      const sessionToken = await sdk.createSessionToken("local-admin", { name: "Carmen", expiresInMs: ONE_YEAR_MS });
+      if (!localAdminEnabled()) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Yönetim girişi bu sunucuda kapalı. LOCAL_ADMIN_PASSWORD ekleyip sunucuyu yeniden başlat." });
+      }
+      const ip = buyerIp(ctx.req);
+      if (!allowLoginAttempt(ip)) {
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Çok fazla deneme. Bir süre sonra tekrar dene." });
+      }
+      const expected = localAdminPassword();
+      if (!expected || input.password !== expected) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Şifre yanlış." });
+      }
+      clearLoginAttempts(ip);
+      const sessionToken = await sdk.createSessionToken("local-admin", { name: "Carmen", expiresInMs: ADMIN_SESSION_MS });
       const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      ctx.res.cookie(COOKIE_NAME, sessionToken, cookieOptions);
       return { success: true } as const;
     }),
   }),
@@ -132,6 +173,7 @@ export const appRouter = router({
       .input(z.object({
         customerName: z.string().trim().max(255),
         customerPhone: z.string().trim().max(40),
+        customerIdentityNumber: z.string().trim().max(20).optional(),
         shippingAddress: z.string().trim().max(1000),
         productIds: z.array(z.number().int().positive()).min(1).max(20),
       }))
@@ -144,6 +186,10 @@ export const appRouter = router({
         if (input.shippingAddress.length < 8) throw new TRPCError({ code: "BAD_REQUEST", message: "Teslimat adresi eksik." });
         if (!iyzicoConfigured()) {
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: "iyzico anahtarı yok. Proje klasöründeki .env dosyasına IYZICO_API_KEY ve IYZICO_SECRET_KEY ekleyip sunucuyu yeniden başlat." });
+        }
+        const identityNumber = buyerIdentityNumber(input.customerIdentityNumber);
+        if (!identityNumber) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Canlı ödemede geçerli bir TC kimlik numarası gerekli." });
         }
         const uniqueIds = Array.from(new Set(input.productIds));
         const availableProducts = await listProducts(false);
@@ -189,6 +235,7 @@ export const appRouter = router({
             customerName: input.customerName,
             customerPhone: input.customerPhone,
             shippingAddress: input.shippingAddress,
+            identityNumber,
             ip: buyerIp(ctx.req),
             items: selected.map((product) => ({
               id: product.id,
@@ -229,22 +276,23 @@ export const appRouter = router({
         if (order.status === "paid") return order;
         if (order.status !== "pending" && order.status !== "cancelled") return order;
         const token = input.sessionId || order.stripeCheckoutSessionId;
-        if (!token || !iyzicoConfigured()) {
-          if (order.status === "pending" || order.status === "cancelled") return markOrderPaid(order.id, null);
-          return order;
-        }
+        if (!token || !iyzicoConfigured()) return order;
         try {
           const result = await retrieveCheckout(token, order.orderNumber);
-          if ((result.paymentStatus || "").toUpperCase() === "FAILURE") {
-            if (order.status === "cancelled") return markOrderPaid(order.id, result.paymentId ?? null);
-            return order;
+          if ((result.paymentStatus || "").toUpperCase() === "SUCCESS") {
+            return markOrderPaid(order.id, result.paymentId ?? null);
           }
-          return markOrderPaid(order.id, result.paymentId ?? null);
+          return order;
         } catch (error) {
           console.error("[iyzico] confirm failed", error instanceof Error ? error.message : error);
-          return markOrderPaid(order.id, null);
+          return order;
         }
       }),
+    paymentMode: publicProcedure.query(() => ({
+      configured: iyzicoConfigured(),
+      live: iyzicoConfigured() && !iyzicoIsSandbox(),
+      needsIdentity: iyzicoConfigured() && !iyzicoIsSandbox(),
+    })),
     cancelCheckout: publicProcedure
       .input(z.object({ orderNumber: z.string().min(1) }))
       .mutation(async ({ input }) => {

@@ -3,13 +3,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { patchLocalProduct } from "./localCatalog";
 import { appRouter } from "./routers";
-import { hostedCheckoutUrl, iyzicoConfig } from "./iyzico";
+import { hostedCheckoutUrl, iyzicoConfig, isValidTckn, publicOrigin } from "./iyzico";
 import { completeIyzicoCheckout } from "./iyzicoCallback";
 
 const savedEnv = {
   key: process.env.IYZICO_API_KEY,
   secret: process.env.IYZICO_SECRET_KEY,
   base: process.env.IYZICO_BASE_URL,
+  site: process.env.SITE_URL,
 };
 const originalFetch = globalThis.fetch;
 
@@ -20,6 +21,8 @@ function restoreEnv() {
   else process.env.IYZICO_SECRET_KEY = savedEnv.secret;
   if (savedEnv.base === undefined) delete process.env.IYZICO_BASE_URL;
   else process.env.IYZICO_BASE_URL = savedEnv.base;
+  if (savedEnv.site === undefined) delete process.env.SITE_URL;
+  else process.env.SITE_URL = savedEnv.site;
 }
 
 function caller() {
@@ -48,6 +51,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   patchLocalProduct(9001, { isAvailable: 1, priceCents: 245000 });
   patchLocalProduct(9002, { isAvailable: 1 });
+  patchLocalProduct(9003, { isAvailable: 1 });
 });
 
 describe("iyzico checkout", () => {
@@ -107,7 +111,7 @@ describe("iyzico checkout", () => {
       expect(body.buyer.identityNumber).toBe("11111111111");
       expect(body.buyer.ip).toBe("85.34.78.112");
       expect(body.callbackUrl).toBe("http://localhost:3000/api/iyzico/callback");
-      expect(body.enabledInstallments).toBeUndefined();
+      expect(body.enabledInstallments).toEqual([1]);
       return Response.json({ status: "success", paymentPageUrl: "https://sandbox-cpp.iyzipay.com?token=tok_test", token: "tok_test" });
     };
 
@@ -221,5 +225,40 @@ describe("iyzico checkout", () => {
     expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
     const order = await caller().order.byNumber({ orderNumber });
     expect(order?.status).toBe("paid");
+  });
+
+  it("uses the live api, SITE_URL callback and a real TCKN when keys are not sandbox", async () => {
+    process.env.IYZICO_API_KEY = "live-merchant-key";
+    process.env.IYZICO_SECRET_KEY = "live-merchant-secret";
+    process.env.SITE_URL = "https://carmenantika.com/";
+    expect(iyzicoConfig().baseUrl).toBe("https://api.iyzipay.com");
+    expect(isValidTckn("10000000146")).toBe(true);
+    expect(isValidTckn("11111111111")).toBe(false);
+    expect(publicOrigin({ protocol: "http", headers: { host: "localhost:3000" } })).toBe("https://carmenantika.com");
+
+    globalThis.fetch = async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "")) as {
+        callbackUrl: string;
+        buyer: { identityNumber: string };
+      };
+      expect(body.callbackUrl).toBe("https://carmenantika.com/api/iyzico/callback");
+      expect(body.buyer.identityNumber).toBe("10000000146");
+      return Response.json({ status: "success", paymentPageUrl: "https://cpp.iyzipay.com?token=tok_live", token: "tok_live" });
+    };
+
+    const started = await caller().order.createCheckout({
+      ...checkoutInput,
+      productIds: [9003],
+      customerIdentityNumber: "10000000146",
+    });
+    expect(started.url).toContain("cpp.iyzipay.com");
+    expect(started.url).not.toContain("sandbox");
+  });
+
+  it("refuses live checkout without a valid TCKN", async () => {
+    process.env.IYZICO_API_KEY = "live-merchant-key";
+    process.env.IYZICO_SECRET_KEY = "live-merchant-secret";
+    await expect(caller().order.createCheckout(checkoutInput)).rejects.toThrow(/TC kimlik/);
+    await expect(caller().order.createCheckout({ ...checkoutInput, customerIdentityNumber: "11111111111" })).rejects.toThrow(/TC kimlik/);
   });
 });

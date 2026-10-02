@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { InsertProduct, Product } from "../drizzle/schema";
 
 const stamp = new Date("2024-09-01T10:00:00.000Z");
@@ -123,6 +125,42 @@ export const localProducts: Product[] = [
 ];
 
 const memoryProducts: Product[] = localProducts.map((product) => ({ ...product }));
+const persistPath = path.resolve(".data/carmen-catalog.json");
+const persistEnabled = process.env.NODE_ENV !== "test";
+let catalogLoaded = false;
+
+function persistCatalog() {
+  if (!persistEnabled) return;
+  try {
+    fs.mkdirSync(path.dirname(persistPath), { recursive: true });
+    fs.writeFileSync(persistPath, JSON.stringify({
+      products: memoryProducts,
+    }));
+  } catch (error) {
+    console.error("[catalog] persist failed", error instanceof Error ? error.message : error);
+  }
+}
+
+function restoreCatalog() {
+  if (!persistEnabled || catalogLoaded) return;
+  catalogLoaded = true;
+  try {
+    if (!fs.existsSync(persistPath)) return;
+    const saved = JSON.parse(fs.readFileSync(persistPath, "utf8")) as {
+      products?: Array<Product & { createdAt: string; updatedAt: string }>;
+    };
+    if (!Array.isArray(saved.products)) return;
+    memoryProducts.splice(0, memoryProducts.length, ...saved.products.map((product) => ({
+      ...product,
+      createdAt: new Date(product.createdAt),
+      updatedAt: new Date(product.updatedAt),
+    })));
+  } catch (error) {
+    console.error("[catalog] restore failed", error instanceof Error ? error.message : error);
+  }
+}
+
+restoreCatalog();
 
 export function readLocalProducts(includeUnavailable = false) {
   const list = [...memoryProducts].sort((left, right) => right.id - left.id);
@@ -160,6 +198,7 @@ export function saveLocalProduct(input: InsertProduct) {
     updatedAt: now,
   };
   memoryProducts.unshift(product);
+  persistCatalog();
   return product;
 }
 
@@ -167,6 +206,7 @@ export function patchLocalProduct(id: number, input: Partial<InsertProduct>) {
   const current = memoryProducts.find((product) => product.id === id);
   if (!current) return undefined;
   Object.assign(current, input, { updatedAt: new Date() });
+  persistCatalog();
   return current;
 }
 
@@ -174,5 +214,6 @@ export function removeLocalProduct(id: number) {
   const index = memoryProducts.findIndex((product) => product.id === id);
   if (index < 0) return undefined;
   const [removed] = memoryProducts.splice(index, 1);
+  persistCatalog();
   return removed;
 }

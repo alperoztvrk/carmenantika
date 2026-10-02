@@ -51,8 +51,14 @@ export default function OrderSuccess() {
           <div className="success-card">
             <div className="success-icon"><Check size={28} /></div>
             <span className="eyebrow">Carmen Antika / Sipariş</span>
-            <h1>Siparişin <em>başarılı.</em></h1>
-            <p>Ödemen alındı. Kısa mesaj ile de bilgilendirme gelecek. Parçanı Antalya'dan özenle paketleyip yola çıkaracağız.</p>
+            <h1>{order?.status === "cancelled" ? <>Ödeme <em>tamamlanamadı.</em></> : order?.status === "paid" || !order ? <>Siparişin <em>başarılı.</em></> : <>Ödemen <em>onaylanıyor.</em></>}</h1>
+            <p>
+              {order?.status === "cancelled"
+                ? "Kart çekimi tamamlanmadı. Çantanı kontrol edip ödemeyi yeniden deneyebilirsin."
+                : order?.status === "paid" || !order
+                  ? "Ödemen alındı. Kısa mesaj ile de bilgilendirme gelecek. Parçanı Antalya'dan özenle paketleyip yola çıkaracağız."
+                  : "iyzico ödemeyi doğruluyor. Bu sayfayı kapatma; onay gelince fişin burada görünür."}
+            </p>
             {orderNumber && (
               <div className="order-number">
                 <span>Sipariş numarası</span>

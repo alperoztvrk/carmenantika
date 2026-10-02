@@ -11,6 +11,7 @@ const savedEnv = {
   secret: process.env.IYZICO_SECRET_KEY,
   base: process.env.IYZICO_BASE_URL,
   site: process.env.SITE_URL,
+  node: process.env.NODE_ENV,
 };
 const originalFetch = globalThis.fetch;
 
@@ -23,6 +24,8 @@ function restoreEnv() {
   else process.env.IYZICO_BASE_URL = savedEnv.base;
   if (savedEnv.site === undefined) delete process.env.SITE_URL;
   else process.env.SITE_URL = savedEnv.site;
+  if (savedEnv.node === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = savedEnv.node;
 }
 
 function caller() {
@@ -281,5 +284,13 @@ describe("iyzico checkout", () => {
     process.env.IYZICO_SECRET_KEY = "live-merchant-secret";
     await expect(caller().order.createCheckout(checkoutInput)).rejects.toThrow(/TC kimlik/);
     await expect(caller().order.createCheckout({ ...checkoutInput, customerIdentityNumber: "11111111111" })).rejects.toThrow(/TC kimlik/);
+  });
+
+  it("refuses sandbox keys when the shop is in production", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.IYZICO_API_KEY = "sandbox-key";
+    process.env.IYZICO_SECRET_KEY = "sandbox-secret";
+    process.env.SITE_URL = "https://carmenantika.com";
+    await expect(caller().order.createCheckout(checkoutInput)).rejects.toThrow(/sandbox/i);
   });
 });

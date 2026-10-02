@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { findLatestPendingOrder, getOrderByCheckoutSession, getOrderByNumber, markOrderPaid } from "./db";
+import { getOrderByCheckoutSession, getOrderByNumber, markOrderPaid } from "./db";
 import { publicOrigin, retrieveCheckout, type IyzicoPayment } from "./iyzico";
 
 function successPath(orderNumber: string) {
@@ -26,10 +26,7 @@ function fieldsFrom(record: Record<string, unknown> | undefined) {
 async function locateOrder(token: string, hintedOrderNumber: string) {
   const hinted = hintedOrderNumber ? await getOrderByNumber(hintedOrderNumber) : undefined;
   const stored = token ? await getOrderByCheckoutSession(token) : undefined;
-  const known = stored ?? hinted;
-  if (known) return known;
-  if (token || hintedOrderNumber) return findLatestPendingOrder();
-  return undefined;
+  return stored ?? hinted;
 }
 
 function wait(ms: number) {
@@ -52,7 +49,7 @@ export async function completeIyzicoCheckout(token: string, hintedOrderNumber = 
       last = await retrieveCheckout(token, order?.orderNumber || hintedOrderNumber);
       const fromConversation = last.conversationId ? await getOrderByNumber(last.conversationId) : undefined;
       const fromBasket = last.basketId ? await getOrderByNumber(last.basketId) : undefined;
-      order = order ?? fromConversation ?? fromBasket ?? (await findLatestPendingOrder());
+      order = order ?? fromConversation ?? fromBasket;
       const status = paymentStatusOf(last);
       console.log("[iyzico] retrieve", { attempt, status, paymentId: last.paymentId || "-", error: last.errorMessage || "-" });
       if (status === "SUCCESS" && order) {
@@ -127,8 +124,7 @@ async function handleIyzicoReturn(req: Request, res: Response) {
   } catch (error) {
     console.error("[iyzico] callback failed", error instanceof Error ? error.message : error);
     const order = (hinted ? await getOrderByNumber(hinted) : undefined)
-      ?? (token ? await getOrderByCheckoutSession(token) : undefined)
-      ?? (await findLatestPendingOrder());
+      ?? (token ? await getOrderByCheckoutSession(token) : undefined);
     if (!allowRedirect) {
       res.status(200).set({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).send("<!doctype html><html><body></body></html>");
       return;

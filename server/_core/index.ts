@@ -8,6 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { registerStripeWebhook } from "../stripe";
 import { registerIyzicoCallback } from "../iyzicoCallback";
 import { iyzicoStatusLine } from "../iyzico";
+import { assertLiveConfig } from "../liveGuard";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -31,15 +32,31 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+function securityHeaders(_req: express.Request, res: express.Response, next: express.NextFunction) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  }
+  next();
+}
+
 async function startServer() {
+  try {
+    assertLiveConfig();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
+  app.use(securityHeaders);
   const server = createServer(app);
   registerStripeWebhook(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "12mb" }));
+  app.use(express.urlencoded({ limit: "12mb", extended: true }));
   registerIyzicoCallback(app);
   registerStorageProxy(app);
   registerOAuthRoutes(app);

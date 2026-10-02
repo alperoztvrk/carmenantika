@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { ADMIN_SESSION_MS, COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -25,9 +26,10 @@ import {
 import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
 import { phonesMatch, readGuestOrderNumbers, rememberGuestOrder } from "./guestOrders";
-import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, iyzicoStatusLine, publicOrigin, retrieveCheckout } from "./iyzico";
+import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const checkoutAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function localAdminEnabled() {
   return !ENV.isProduction || Boolean(ENV.localAdminPassword);
@@ -38,17 +40,35 @@ function localAdminPassword() {
   return ENV.isProduction ? "" : "carmen";
 }
 
-function allowLoginAttempt(ip: string) {
+function allowAttempt(store: Map<string, { count: number; resetAt: number }>, ip: string, max: number) {
   if (process.env.NODE_ENV === "test") return true;
   const now = Date.now();
-  const current = loginAttempts.get(ip);
+  const current = store.get(ip);
   if (!current || now >= current.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 });
+    store.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 });
     return true;
   }
-  if (current.count >= 8) return false;
+  if (current.count >= max) return false;
   current.count += 1;
   return true;
+}
+
+function allowLoginAttempt(ip: string) {
+  return allowAttempt(loginAttempts, ip, 8);
+}
+
+function allowCheckoutAttempt(ip: string) {
+  return allowAttempt(checkoutAttempts, ip, 20);
+}
+
+function passwordsMatch(input: string, expected: string) {
+  const left = Buffer.from(input);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length) {
+    crypto.timingSafeEqual(right, right);
+    return false;
+  }
+  return crypto.timingSafeEqual(left, right);
 }
 
 function clearLoginAttempts(ip: string) {
@@ -133,7 +153,7 @@ export const appRouter = router({
         throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Çok fazla deneme. Bir süre sonra tekrar dene." });
       }
       const expected = localAdminPassword();
-      if (!expected || input.password !== expected) {
+      if (!expected || !passwordsMatch(input.password, expected)) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Şifre yanlış." });
       }
       clearLoginAttempts(ip);
@@ -171,7 +191,12 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const data = Buffer.from(input.dataBase64, "base64");
         if (data.byteLength > 8 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Görsel 8 MB'dan küçük olmalı." });
-        const result = await storagePut(`carmen-antika/products/${Date.now()}-${input.fileName}`, data, input.contentType);
+        const type = input.contentType.toLowerCase();
+        if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(type)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Sadece jpeg, png, webp veya gif yükle." });
+        }
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^\.+/, "").slice(-80) || "gorsel.jpg";
+        const result = await storagePut(`carmen-antika/products/${Date.now()}-${safeName}`, data, type);
         return result;
       }),
     adminCreate: adminProcedure
@@ -210,6 +235,23 @@ export const appRouter = router({
         if (input.shippingAddress.length < 8) throw new TRPCError({ code: "BAD_REQUEST", message: "Teslimat adresi eksik." });
         if (!iyzicoConfigured()) {
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: "iyzico anahtarı yok. Proje klasöründeki .env dosyasına IYZICO_API_KEY ve IYZICO_SECRET_KEY ekleyip sunucuyu yeniden başlat." });
+        }
+        const liveHost = (() => {
+          try {
+            const host = new URL(ENV.siteUrl.startsWith("http") ? ENV.siteUrl : `https://${ENV.siteUrl}`).hostname;
+            return Boolean(host) && host !== "localhost" && host !== "127.0.0.1";
+          } catch {
+            return false;
+          }
+        })();
+        if ((ENV.isProduction || liveHost) && iyzicoIsSandbox()) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Canlı sitede sandbox iyzico anahtarı kullanılamaz. merchant.iyzipay.com canlı anahtarlarını .env dosyasına yazıp sunucuyu yeniden başlat." });
+        }
+        if ((ENV.isProduction || liveHost) && !/^https:\/\//i.test(ENV.siteUrl)) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Canlı ödeme için SITE_URL https://senin-domainin.com olmalı." });
+        }
+        if (!allowCheckoutAttempt(buyerIp(ctx.req))) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Çok fazla deneme. Bir süre sonra tekrar dene." });
         }
         const identityNumber = buyerIdentityNumber(input.customerIdentityNumber);
         if (!identityNumber) {
@@ -282,7 +324,7 @@ export const appRouter = router({
           const errorCode = error instanceof Error && "errorCode" in error ? String((error as { errorCode?: string }).errorCode ?? "") : "";
           console.error("[iyzico] checkout failed", errorCode, detail);
           if (/api key|secret key|authorization|imza|signature|api bilgileri/i.test(detail)) {
-            throw new TRPCError({ code: "PRECONDITION_FAILED", message: `iyzico bu anahtarı tanımıyor. ${iyzicoStatusLine()} Ayarlar → Firma Ayarları → API Anahtarları → Görüntüle. API Anahtarı satırı IYZICO_API_KEY, Güvenlik Anahtarı satırı IYZICO_SECRET_KEY olmalı. Tırnak koyma. Kaydedince ödemeyi tekrar dene.` });
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "iyzico bu anahtarı tanımıyor. merchant.iyzipay.com → Ayarlar → API Anahtarları. Tırnak koyma. Kaydedince sunucuyu yeniden başlat." });
           }
           if (/aborted|timeout/i.test(detail)) {
             throw new TRPCError({ code: "TIMEOUT", message: "iyzico yanıt vermedi. Ödemeyi tekrar dene." });

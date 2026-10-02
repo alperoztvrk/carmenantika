@@ -23,9 +23,7 @@ export default function Cart() {
   const paymentMode = trpc.order.paymentMode.useQuery();
   useEffect(() => {
     const cancelled = new URLSearchParams(window.location.search).get("iptal");
-    if (cancelled) {
-      window.location.replace(`/siparis-basarili?order=${encodeURIComponent(cancelled)}`);
-    }
+    if (cancelled) window.history.replaceState({}, "", "/sepet");
   }, []);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);

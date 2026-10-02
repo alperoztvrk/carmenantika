@@ -66,9 +66,8 @@ export async function completeIyzicoCheckout(token: string, hintedOrderNumber = 
   }
 
   if (!allowRedirect) return null;
-  if (!order) return successPath(hintedOrderNumber);
-  if (order.status !== "paid") await markOrderPaid(order.id, last?.paymentId ?? null);
-  return successPath(order.orderNumber);
+  if (!order && !hintedOrderNumber) return null;
+  return successPath(order?.orderNumber || hintedOrderNumber);
 }
 
 function readCallbackFields(req: Request) {
@@ -134,8 +133,7 @@ async function handleIyzicoReturn(req: Request, res: Response) {
       res.status(200).set({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).send("<!doctype html><html><body></body></html>");
       return;
     }
-    if (order && order.status !== "paid") await markOrderPaid(order.id, null);
-    sendShopper(req, res, order ? successPath(order.orderNumber) : "/siparis-basarili");
+    sendShopper(req, res, order ? successPath(order.orderNumber) : "/");
   }
 }
 

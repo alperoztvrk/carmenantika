@@ -52,6 +52,7 @@ afterEach(() => {
   patchLocalProduct(9001, { isAvailable: 1, priceCents: 245000 });
   patchLocalProduct(9002, { isAvailable: 1 });
   patchLocalProduct(9003, { isAvailable: 1 });
+  patchLocalProduct(9004, { isAvailable: 1 });
 });
 
 describe("iyzico checkout", () => {
@@ -224,7 +225,27 @@ describe("iyzico checkout", () => {
     const destination = await completeIyzicoCheckout("tok_slow", orderNumber, true);
     expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
     const order = await caller().order.byNumber({ orderNumber });
-    expect(order?.status).toBe("paid");
+    expect(order?.status).toBe("pending");
+  });
+
+  it("does not mark the order paid just because the shopper reached iyzico", async () => {
+    process.env.IYZICO_API_KEY = "sandbox-key";
+    process.env.IYZICO_SECRET_KEY = "sandbox-secret";
+    let orderNumber = "";
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/detail")) {
+        return Response.json({ status: "success", paymentStatus: "FAILURE", conversationId: orderNumber, basketId: orderNumber });
+      }
+      return Response.json({ status: "success", paymentPageUrl: "https://sandbox-cpp.iyzipay.com?token=tok_open", token: "tok_open" });
+    };
+    const started = await caller().order.createCheckout({ ...checkoutInput, productIds: [9004] });
+    orderNumber = started.orderNumber;
+    const destination = await completeIyzicoCheckout("tok_open", orderNumber, true);
+    expect(destination).toBe(`/siparis-basarili?order=${encodeURIComponent(orderNumber)}`);
+    const order = await caller().order.byNumber({ orderNumber });
+    expect(order?.status).toBe("pending");
+    await expect(caller().order.confirmPayment({ orderNumber, sessionId: "tok_open" })).resolves.toMatchObject({ status: "pending" });
   });
 
   it("uses the live api, SITE_URL callback and a real TCKN when keys are not sandbox", async () => {

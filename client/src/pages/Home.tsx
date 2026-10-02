@@ -19,27 +19,27 @@ export default function Home() {
               <motion.span className="hero-line" variants={heroItem}><em>bugün</em> için seçilmiş.</motion.span>
             </motion.h1>
             <motion.p className="hero-intro" variants={heroItem}>
-              Carmen Antika, bit pazarlarından ve eski dükkânlardan bulunan ikinci el radyo, oyuncak, kamera ve küçük tuhaflıkları yeni sahipleriyle buluşturur. Her parça tek, her iz gerçek.
+              Carmen Antika, ikinci el radyo, oyuncak, kamera ve seçilmiş objeleri Antalya’dan gönderir. Her parça tek; kondisyonu açıkça yazılır.
             </motion.p>
             <motion.div className="cta-row" variants={heroItem}>
               <Link className="primary-cta" href="/koleksiyon">Koleksiyonu keşfet <ArrowRight size={15} /></Link>
-              <Link className="outline-cta" href="/hikayemiz">Bizim hikâyemiz</Link>
+              <Link className="outline-cta" href="/hikayemiz">Hikâyemiz</Link>
             </motion.div>
             <motion.div className="hero-note" variants={heroItem}>
               <strong>01</strong>
-              <span>Bu ayın teması<br />Pazardan eve, iyi bulunmuş</span>
+              <span>Antalya<br />Tekil stok, özenli teslimat</span>
             </motion.div>
           </HeroEnter>
           <div className="hero-visual" data-parallax="0.05">
             <motion.div className="hero-photo" initial={{ y: 18 }} animate={{ y: 0 }} transition={{ duration: 0.7, delay: 0.08, ease }}>
-              <img src="/photos/hero-stall.jpg" alt="Bit pazarında eski eşyaların dizildiği tezgâh" />
+              <img src="/photos/hero-stall.jpg" alt="Carmen Antika vitrininden seçilmiş antika parçalar" />
             </motion.div>
             <motion.div className="hero-stamp" initial={{ scale: 0.92, rotate: 6 }} animate={{ scale: 1, rotate: 12 }} transition={{ duration: 0.7, delay: 0.2, ease }}>
               <span>One of<br />a kind<br />objects</span>
             </motion.div>
             <motion.div className="hero-caption" initial={{ y: 12 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.16, ease }}>
               <p>Bir ev, seçtiği parçalar kadar kendisidir.</p>
-              <small>— Carmen Antika notları, no. 01</small>
+              <small>Antalya</small>
             </motion.div>
           </div>
         </div>

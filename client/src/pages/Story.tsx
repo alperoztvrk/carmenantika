@@ -33,7 +33,7 @@ export default function Story() {
               <motion.span className="hero-line" variants={heroItem}><em>iz</em> biriktiriyoruz.</motion.span>
             </motion.h1>
             <motion.p variants={heroItem}>
-              Antalya'nın farklı köşelerindeki bit pazarlarını, eski dükkânları ve unutulmuş çekmeceleri geziyoruz. Bazen bir radyo, bazen kurmalı bir oyuncak, bazen de ne işe yaradığını bilmediğimiz bir parça buluyoruz.
+              Antalya’da ikinci el radyo, oyuncak, kamera ve objeler seçiyoruz. Her parça tek; kondisyonu ve hikâyesi ürün sayfasında durur.
             </motion.p>
           </motion.div>
         </HeroEnter>
@@ -41,7 +41,7 @@ export default function Story() {
 
       <StoryStage className="story-page-grid container-carmen">
         <div className="story-page-image">
-          <img src="/photos/story-market.jpg" alt="Bit pazarında bulunan eski vazolar ve küçük objeler" />
+          <img src="/photos/story-market.jpg" alt="Seçilmiş antika vazolar ve objeler" />
         </div>
         <div className="story-page-copy">
           <span className="eyebrow">01 / Bulmak</span>
@@ -90,7 +90,7 @@ export default function Story() {
         <div className="container-carmen">
           <Sparkles size={20} />
           <blockquote>“İyi bulunan bir şey, sahibini de bulur.”</blockquote>
-          <span>Carmen'in defterinden</span>
+          <span>Antalya</span>
         </div>
       </StoryStage>
 

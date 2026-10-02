@@ -167,6 +167,12 @@ export default function Admin() {
       <PageRise>
         <section className="admin-page">
           <div className="container-carmen">
+            <div className="admin-toolbar">
+              <span className="eyebrow">Yönetim</span>
+              <button className="admin-logout" type="button" onClick={() => { void logout(); }}>
+                <LogOut size={16} /> Çıkış yap
+              </button>
+            </div>
             <div className="admin-heading">
               <div>
                 <span className="eyebrow">Carmen Antika / Yönetim</span>
@@ -178,9 +184,6 @@ export default function Admin() {
                   <strong>{availableCount}</strong>
                   <span>aktif parça</span>
                 </div>
-                <button className="admin-quiet" type="button" onClick={() => { void logout(); }}>
-                  <LogOut size={15} /> Çıkış
-                </button>
               </div>
             </div>
             <div className="admin-layout">

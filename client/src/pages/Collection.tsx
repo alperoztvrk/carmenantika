@@ -31,8 +31,8 @@ export default function Collection() {
           <motion.div className="from-bar-copy" variants={staggerBlock}>
             <motion.span className="eyebrow" variants={heroItem}>Carmen Antika / Koleksiyon</motion.span>
             <motion.h1 variants={staggerBlock}>
-              <motion.span className="hero-line" variants={heroItem}>Pazardan</motion.span>
-              <motion.span className="hero-line" variants={heroItem}><em>gelenler.</em></motion.span>
+              <motion.span className="hero-line" variants={heroItem}>Seçilmiş</motion.span>
+              <motion.span className="hero-line" variants={heroItem}><em>parçalar.</em></motion.span>
             </motion.h1>
             <motion.p variants={heroItem}>Her biri tek olan küçük keşifler. Birinin artık kullanmadığı, senin yıllardır aradığın şey olabilir.</motion.p>
           </motion.div>

@@ -6,6 +6,7 @@ import { StoreImage } from "@/components/StoreImage";
 import { money } from "@/components/ProductCard";
 import { goWithCurtain } from "@/components/PageCurtain";
 import { holdLabel, useCart } from "@/contexts/CartContext";
+import { SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
 
@@ -76,8 +77,8 @@ export function StoreHeader() {
     <MotionConfig reducedMotion="never">
       <div className="topline">
         <div className="container-carmen topline-inner">
-          <span>Antalya'dan dünyanın her yerine</span>
-          <span>Her parçanın bir hikâyesi var · keşfetmeye başla</span>
+          <a className="topline-phone" href={SHOP_PHONE_TEL}>{SHOP_PHONE}</a>
+          <span>Antalya · soru ve pazarlık için ara</span>
         </div>
       </div>
       <header className="site-header">
@@ -94,7 +95,7 @@ export function StoreHeader() {
           </nav>
           <Link href="/" className="brand-lockup" aria-label="Carmen Antika ana sayfa">
             <span className="brand-name">Carmen Antika</span>
-            <span className="brand-sub">Flea market finds · Est. 2024</span>
+            <span className="brand-sub">Antika · Antalya</span>
           </Link>
           <div className="header-actions">
             <button className={`icon-button ${searchOpen ? "active" : ""}`} type="button" aria-label="Arama" aria-expanded={searchOpen} onClick={() => { setMobileOpen(false); setSearchOpen((open) => !open); }}>
@@ -124,6 +125,7 @@ export function StoreHeader() {
                 ["/koleksiyon", "Koleksiyon"],
                 ["/hikayemiz", "Hikâyemiz"],
                 ["/siparislerim", "Siparişlerim"],
+                ["/iletisim", "İletişim"],
               ].map(([href, label], index) => (
                 <motion.div key={href} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 + index * 0.06, duration: 0.4, ease }}>
                   <Link href={href} onClick={() => setMobileOpen(false)}>{label}</Link>

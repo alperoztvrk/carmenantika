@@ -21,43 +21,42 @@ export function useAuth(options?: UseAuthOptions) {
     refetchOnWindowFocus: false,
   });
 
-  const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => {
-      utils.auth.me.setData(undefined, null);
-    },
-  });
+  const logoutMutation = trpc.auth.logout.useMutation();
 
   const logout = useCallback(async () => {
     try {
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
-      if (
-        error instanceof TRPCClientError &&
-        error.data?.code === "UNAUTHORIZED"
-      ) {
-        return;
+      const unauthorized =
+        error instanceof TRPCClientError && error.data?.code === "UNAUTHORIZED";
+      if (!unauthorized) {
+        console.warn("[Auth] Logout request failed; clearing the local session anyway.");
       }
-      throw error;
-    } finally {
-      // Clear the Preview auto-login token mirrored into sessionStorage, so
-      // header-based sessions (Safari ITP / WebView) are logged out too. The
-      // backend cookie is cleared by the logout mutation.
-      try {
-        sessionStorage.removeItem("manus-cookie");
-      } catch {}
-      utils.auth.me.setData(undefined, null);
-      await utils.auth.me.invalidate();
     }
+    try {
+      sessionStorage.removeItem("manus-cookie");
+    } catch {
+      /* private mode */
+    }
+    try {
+      localStorage.removeItem("manus-runtime-user-info");
+    } catch {
+      /* private mode */
+    }
+    await utils.auth.me.cancel();
+    utils.auth.me.setData(undefined, null);
   }, [logoutMutation, utils]);
 
   const state = useMemo(() => {
-    localStorage.setItem(
-      "manus-runtime-user-info",
-      JSON.stringify(meQuery.data)
-    );
+    try {
+      localStorage.setItem("manus-runtime-user-info", JSON.stringify(meQuery.data ?? null));
+    } catch {
+      /* private mode */
+    }
     return {
       user: meQuery.data ?? null,
-      loading: meQuery.isLoading || logoutMutation.isPending,
+      loading: meQuery.isLoading,
+      loggingOut: logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
     };

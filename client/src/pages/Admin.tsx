@@ -104,7 +104,7 @@ const orderStatusLabel: Record<string, string> = {
 
 export default function Admin() {
   const utils = trpc.useUtils();
-  const { user, loading, logout } = useAuth();
+  const { user, loading, loggingOut, logout } = useAuth();
   const isAdmin = user?.role === "admin";
   const products = trpc.product.adminList.useQuery(undefined, { enabled: isAdmin });
   const orders = trpc.order.adminList.useQuery(undefined, { enabled: isAdmin, refetchInterval: 5000 });
@@ -157,22 +157,26 @@ export default function Admin() {
     remove.mutate({ id });
   }
   const availableCount = useMemo(() => (products.data ?? []).filter((product) => product.isAvailable).length, [products.data]);
+  const exitAdmin = () => { void logout(); };
 
-  if (loading) return <StoreLayout><div className="admin-state">Yönetim alanı açılıyor...</div></StoreLayout>;
+  if (loading && !user) return <div className="admin-state">Yönetim alanı açılıyor...</div>;
   if (!user) return <AdminLogin />;
-  if (!isAdmin) return <StoreLayout><div className="admin-state"><ShieldAlert size={24} /><h1>Bu alan yalnızca admin içindir.</h1><p>Hesabının ürün yönetimi yetkisi bulunmuyor.</p></div></StoreLayout>;
+  if (!isAdmin) return <div className="admin-state"><ShieldAlert size={24} /><h1>Bu alan yalnızca admin içindir.</h1><p>Hesabının ürün yönetimi yetkisi bulunmuyor.</p></div>;
 
   return (
-    <StoreLayout>
+    <>
+      <header className="admin-bar">
+        <div className="admin-bar-brand">
+          <strong>Carmen Antika</strong>
+          <span>Yönetim</span>
+        </div>
+        <button className="admin-logout" type="button" disabled={loggingOut} onClick={exitAdmin}>
+          <LogOut size={18} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
+        </button>
+      </header>
       <PageRise>
         <section className="admin-page">
           <div className="container-carmen">
-            <div className="admin-toolbar">
-              <span className="eyebrow">Yönetim</span>
-              <button className="admin-logout" type="button" onClick={() => { void logout(); }}>
-                <LogOut size={16} /> Çıkış yap
-              </button>
-            </div>
             <div className="admin-heading">
               <div>
                 <span className="eyebrow">Carmen Antika / Yönetim</span>
@@ -278,9 +282,14 @@ export default function Admin() {
                 </div>
               )}
             </section>
+            <div className="admin-exit">
+              <button className="admin-logout" type="button" disabled={loggingOut} onClick={exitAdmin}>
+                <LogOut size={18} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
+              </button>
+            </div>
           </div>
         </section>
       </PageRise>
-    </StoreLayout>
+    </>
   );
 }

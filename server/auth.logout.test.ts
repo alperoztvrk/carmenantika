@@ -5,13 +5,15 @@ import type { TrpcContext } from "./_core/context";
 
 type CookieCall = {
   name: string;
+  value?: string;
   options: Record<string, unknown>;
 };
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] } {
+function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[]; setCookies: CookieCall[] } {
   const clearedCookies: CookieCall[] = [];
+  const setCookies: CookieCall[] = [];
 
   const user: AuthenticatedUser = {
     id: 1,
@@ -35,15 +37,18 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
       clearCookie: (name: string, options: Record<string, unknown>) => {
         clearedCookies.push({ name, options });
       },
+      cookie: (name: string, value: string, options: Record<string, unknown>) => {
+        setCookies.push({ name, value, options });
+      },
     } as TrpcContext["res"],
   };
 
-  return { ctx, clearedCookies };
+  return { ctx, clearedCookies, setCookies };
 }
 
 describe("auth.logout", () => {
   it("clears the session cookie and reports success", async () => {
-    const { ctx, clearedCookies } = createAuthContext();
+    const { ctx, clearedCookies, setCookies } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const result = await caller.auth.logout();
@@ -52,11 +57,12 @@ describe("auth.logout", () => {
     expect(clearedCookies).toHaveLength(1);
     expect(clearedCookies[0]?.name).toBe(COOKIE_NAME);
     expect(clearedCookies[0]?.options).toMatchObject({
-      maxAge: -1,
       secure: true,
       sameSite: "lax",
       httpOnly: true,
       path: "/",
     });
+    expect(setCookies[0]).toMatchObject({ name: COOKIE_NAME, value: "" });
+    expect(setCookies[0]?.options).toMatchObject({ maxAge: 0, path: "/" });
   });
 });

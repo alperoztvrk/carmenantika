@@ -18,7 +18,7 @@ export function StoreFooter() {
         <div className="footer-grid">
           <div className="footer-brand-col">
             <div className="footer-brand">Carmen Antika</div>
-            <p className="footer-note">Antalya’dan seçilmiş ikinci el radyo, kamera, oyuncak ve objeler. Her parça tek.</p>
+            <p className="footer-note">Antalya’da seçilmiş ikinci el radyo, kamera, oyuncak ve objeler. Her parça tek.</p>
           </div>
           <div className="footer-col">
             <h3>Keşfet</h3>

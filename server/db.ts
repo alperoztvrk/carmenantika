@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import crypto from "node:crypto";
 import {
   InsertOrder,
   InsertOrderItem,
@@ -221,5 +222,5 @@ export async function listOrders() {
 }
 
 export function makeOrderNumber() {
-  return `CA-${Date.now().toString(36).toUpperCase()}`;
+  return `CA-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 }

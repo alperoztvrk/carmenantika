@@ -262,10 +262,14 @@ export default function Admin() {
                 <div className="admin-order-list">
                   {orders.data?.map((order) => (
                     <div className="admin-order-row" key={order.id}>
-                      <strong>{order.orderNumber}</strong>
-                      <span>{order.customerName} · {order.customerPhone || "telefon yok"}{order.shippingAddress ? ` · ${order.shippingAddress}` : ""}{order.items?.length ? ` · ${order.items.map((item) => item.productName).join(", ")}` : ""}</span>
+                      <div className="admin-order-top">
+                        <strong>{order.orderNumber}</strong>
+                        <em>{orderStatusLabel[order.status] ?? order.status}</em>
+                      </div>
+                      <span className="admin-order-who">{order.customerName} · {order.customerPhone || "telefon yok"}</span>
+                      {order.shippingAddress ? <span className="admin-order-address">{order.shippingAddress}</span> : null}
+                      {order.items?.length ? <span className="admin-order-items">{order.items.map((item) => item.productName).join(", ")}</span> : null}
                       <b>{(order.totalCents / 100).toLocaleString("tr-TR")} ₺</b>
-                      <em>{orderStatusLabel[order.status] ?? order.status}</em>
                     </div>
                   ))}
                 </div>

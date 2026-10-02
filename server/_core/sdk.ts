@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS, decodeOAuthState } from "@shared/const";
 import { ForbiddenError } from "@shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
@@ -8,6 +7,7 @@ import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
+import { cookieSecretKey } from "./secrets";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -154,17 +154,8 @@ class SDKServer {
     return new Map(Object.entries(parsed));
   }
 
-  private generatedSecret = "";
-
   private getSessionSecret() {
-    const fromEnv = ENV.cookieSecret.trim();
-    if (fromEnv) return new TextEncoder().encode(fromEnv);
-    if (!ENV.isProduction) return new TextEncoder().encode("carmen-local-dev-secret");
-    if (!this.generatedSecret) {
-      this.generatedSecret = crypto.randomBytes(32).toString("hex");
-      console.warn("[Auth] JWT_SECRET yok; bu açılış için geçici bir anahtar üretildi. Canlı sitede .env içine JWT_SECRET ekle.");
-    }
-    return new TextEncoder().encode(this.generatedSecret);
+    return cookieSecretKey();
   }
 
   /**

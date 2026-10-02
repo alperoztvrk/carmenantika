@@ -5,7 +5,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   archiveProduct,
   createOrder,
@@ -24,6 +24,7 @@ import {
 } from "./db";
 import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
+import { phonesMatch, readGuestOrderNumbers, rememberGuestOrder } from "./guestOrders";
 import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, iyzicoStatusLine, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -52,6 +53,29 @@ function allowLoginAttempt(ip: string) {
 
 function clearLoginAttempts(ip: string) {
   loginAttempts.delete(ip);
+}
+
+function openInspect() {
+  return process.env.NODE_ENV === "test";
+}
+
+async function ownsGuestOrder(ctx: { user: { role?: string } | null; req: { headers: { cookie?: string } } }, orderNumber: string) {
+  if (ctx.user?.role === "admin") return true;
+  const guest = await readGuestOrderNumbers(ctx.req);
+  return guest.includes(orderNumber);
+}
+
+async function canReadOrder(ctx: { user: { role?: string } | null; req: { headers: { cookie?: string } } }, orderNumber: string) {
+  if (openInspect()) return true;
+  return ownsGuestOrder(ctx, orderNumber);
+}
+
+async function ordersForGuest(req: { headers: { cookie?: string } }) {
+  const numbers = await readGuestOrderNumbers(req);
+  const found = await Promise.all(numbers.map((orderNumber) => getOrderByNumber(orderNumber)));
+  return found
+    .filter((order): order is NonNullable<typeof order> => Boolean(order))
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
 }
 
 const productFields = {
@@ -249,6 +273,7 @@ export const appRouter = router({
             await updateOrder(order.id, { stripeCheckoutSessionId: token.slice(0, 255) });
             rememberLocalCheckoutToken(token, orderNumber);
           }
+          await rememberGuestOrder(ctx.req, ctx.res, orderNumber);
           return { url: session.url, orderNumber };
         } catch (error) {
           await updateProductsAvailability(selected.map((product) => product.id), 1);
@@ -270,23 +295,27 @@ export const appRouter = router({
       }),
     confirmPayment: publicProcedure
       .input(z.object({ orderNumber: z.string().min(1), sessionId: z.string().min(1).optional() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const order = await getOrderByNumber(input.orderNumber);
         if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı." });
         if (order.status === "paid") return order;
         if (order.status !== "pending" && order.status !== "cancelled") return order;
         const token = input.sessionId || order.stripeCheckoutSessionId;
-        if (!token || !iyzicoConfigured()) return order;
-        try {
-          const result = await retrieveCheckout(token, order.orderNumber);
-          if ((result.paymentStatus || "").toUpperCase() === "SUCCESS") {
-            return markOrderPaid(order.id, result.paymentId ?? null);
+        let latest = order;
+        if (token && iyzicoConfigured()) {
+          try {
+            const result = await retrieveCheckout(token, order.orderNumber);
+            if ((result.paymentStatus || "").toUpperCase() === "SUCCESS") {
+              latest = await markOrderPaid(order.id, result.paymentId ?? null) ?? order;
+            }
+          } catch (error) {
+            console.error("[iyzico] confirm failed", error instanceof Error ? error.message : error);
           }
-          return order;
-        } catch (error) {
-          console.error("[iyzico] confirm failed", error instanceof Error ? error.message : error);
-          return order;
         }
+        if (!(await canReadOrder(ctx, order.orderNumber))) {
+          return { ...latest, customerName: "", customerEmail: "", customerPhone: "", shippingAddress: null };
+        }
+        return latest;
       }),
     paymentMode: publicProcedure.query(() => ({
       configured: iyzicoConfigured(),
@@ -295,15 +324,48 @@ export const appRouter = router({
     })),
     cancelCheckout: publicProcedure
       .input(z.object({ orderNumber: z.string().min(1) }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!(await ownsGuestOrder(ctx, input.orderNumber))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı." });
+        }
         const order = await getOrderByNumber(input.orderNumber);
         if (!order || order.status !== "pending") return { ok: true };
         await updateProductsAvailability(order.items.map((item) => item.productId), 1);
         await updateOrder(order.id, { status: "cancelled" });
         return { ok: true };
       }),
-    byNumber: publicProcedure.input(z.object({ orderNumber: z.string().min(1) })).query(({ input }) => getOrderByNumber(input.orderNumber)),
-    mine: protectedProcedure.query(({ ctx }) => listOrdersForUser(ctx.user.id)),
+    byNumber: publicProcedure.input(z.object({ orderNumber: z.string().min(1) })).query(async ({ input, ctx }) => {
+      const order = await getOrderByNumber(input.orderNumber);
+      if (!order) return null;
+      if (!(await canReadOrder(ctx, order.orderNumber))) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı." });
+      }
+      return order;
+    }),
+    lookup: publicProcedure
+      .input(z.object({
+        orderNumber: z.string().trim().min(3).max(40),
+        customerPhone: z.string().trim().max(40),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const ip = buyerIp(ctx.req);
+        if (!allowLoginAttempt(ip)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Çok fazla deneme. Bir süre sonra tekrar dene." });
+        }
+        const order = await getOrderByNumber(input.orderNumber);
+        if (!order || !phonesMatch(order.customerPhone, input.customerPhone)) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı. Numara ve telefonu kontrol et." });
+        }
+        await rememberGuestOrder(ctx.req, ctx.res, order.orderNumber);
+        return order;
+      }),
+    mine: publicProcedure.query(async ({ ctx }) => {
+      const guest = await ordersForGuest(ctx.req);
+      if (!ctx.user) return guest;
+      const owned = await listOrdersForUser(ctx.user.id);
+      const seen = new Set(guest.map((order) => order.id));
+      return [...guest, ...owned.filter((order) => !seen.has(order.id))];
+    }),
     adminList: adminProcedure.query(() => listOrders()),
   }),
 });

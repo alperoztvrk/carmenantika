@@ -33,6 +33,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+  app.disable("x-powered-by");
   app.set("trust proxy", 1);
   const server = createServer(app);
   registerStripeWebhook(app);

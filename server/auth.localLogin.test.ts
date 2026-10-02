@@ -42,7 +42,7 @@ describe("auth.localLogin", () => {
     process.env.NODE_ENV = "development";
     delete process.env.LOCAL_ADMIN_PASSWORD;
     const status = await caller().caller.auth.localStatus();
-    expect(status).toEqual({ enabled: true, live: false, passwordHint: "carmen" });
+    expect(status).toEqual({ enabled: true, live: false, passwordHint: null });
     const { caller: api, cookies } = caller();
     await expect(api.auth.localLogin({ password: "carmen" })).resolves.toEqual({ success: true });
     expect(cookies[0]?.name).toBe(COOKIE_NAME);

@@ -46,9 +46,6 @@ function AdminLogin() {
               <button className="admin-submit" type="submit" disabled={login.isPending}>
                 {login.isPending ? "Giriliyor..." : "Giriş yap"}
               </button>
-              {status.data.passwordHint && (
-                <small>Bu bilgisayarda şifre: <strong>{status.data.passwordHint}</strong></small>
-              )}
               {login.error && <p className="admin-message is-error">{login.error.message}</p>}
             </form>
           )}
@@ -174,9 +171,6 @@ export default function Admin() {
           <LogOut size={18} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
         </button>
       </header>
-      <button className="admin-logout admin-logout-float" type="button" disabled={loggingOut} onClick={exitAdmin}>
-        <LogOut size={18} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
-      </button>
       <PageRise>
         <section className="admin-page">
           <div className="container-carmen">
@@ -187,9 +181,6 @@ export default function Admin() {
                 <p>Canlı koleksiyona ürün ekle, görsellerini yükle ve satılan parçaları sil.</p>
               </div>
               <div className="admin-heading-tools">
-                <button className="admin-logout" type="button" disabled={loggingOut} onClick={exitAdmin}>
-                  <LogOut size={18} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
-                </button>
                 <div className="admin-stat">
                   <strong>{availableCount}</strong>
                   <span>aktif parça</span>
@@ -288,11 +279,6 @@ export default function Admin() {
                 </div>
               )}
             </section>
-            <div className="admin-exit">
-              <button className="admin-logout" type="button" disabled={loggingOut} onClick={exitAdmin}>
-                <LogOut size={18} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
-              </button>
-            </div>
           </div>
         </section>
       </PageRise>

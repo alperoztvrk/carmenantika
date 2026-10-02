@@ -142,7 +142,7 @@ export const appRouter = router({
       return {
         enabled,
         live: ENV.isProduction,
-        passwordHint: enabled && !ENV.isProduction && !ENV.localAdminPassword ? "carmen" : null,
+        passwordHint: null,
       };
     }),
     localLogin: publicProcedure.input(z.object({ password: z.string().min(1).max(200) })).mutation(async ({ input, ctx }) => {

@@ -1,8 +1,7 @@
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { ArrowRight, LogOut, Menu, Search, ShoppingBag, X } from "lucide-react";
+import { ArrowRight, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { StoreImage } from "@/components/StoreImage";
 import { money } from "@/components/ProductCard";
 import { goWithCurtain } from "@/components/PageCurtain";
@@ -18,8 +17,6 @@ export function StoreHeader() {
   const [searchTerm, setSearchTerm] = useState("");
   const [location] = useLocation();
   const { items, totalCents, removeItem } = useCart();
-  const { user, loggingOut, logout } = useAuth();
-  const canLogout = user?.role === "admin";
   const [now, setNow] = useState(() => Date.now());
   const cartOpenRef = useRef(false);
   const searchOpenRef = useRef(false);
@@ -101,11 +98,6 @@ export function StoreHeader() {
             <span className="brand-sub">Antika · Antalya</span>
           </Link>
           <div className="header-actions">
-            {canLogout && (
-              <button className="admin-logout header-logout" type="button" disabled={loggingOut} onClick={() => { void logout(); }}>
-                <LogOut size={16} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
-              </button>
-            )}
             <button className={`icon-button ${searchOpen ? "active" : ""}`} type="button" aria-label="Arama" aria-expanded={searchOpen} onClick={() => { setMobileOpen(false); setSearchOpen((open) => !open); }}>
               {searchOpen ? <X size={18} /> : <Search size={18} strokeWidth={1.7} />}
             </button>
@@ -139,13 +131,6 @@ export function StoreHeader() {
                   <Link href={href} onClick={() => setMobileOpen(false)}>{label}</Link>
                 </motion.div>
               ))}
-              {canLogout && (
-                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32, duration: 0.4, ease }}>
-                  <button className="admin-logout" type="button" disabled={loggingOut} onClick={() => { setMobileOpen(false); void logout(); }}>
-                    <LogOut size={16} /> {loggingOut ? "Çıkılıyor..." : "Çıkış yap"}
-                  </button>
-                </motion.div>
-              )}
             </motion.nav>
           )}
         </AnimatePresence>

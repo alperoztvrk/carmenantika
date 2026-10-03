@@ -1,6 +1,7 @@
 import { MotionConfig, motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Link } from "wouter";
+import { HomeReviews } from "@/components/HomeReviews";
 import { HeroEnter, heroItem } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
 
@@ -44,6 +45,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <HomeReviews />
       </MotionConfig>
     </StoreLayout>
   );

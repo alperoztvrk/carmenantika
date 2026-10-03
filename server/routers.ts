@@ -26,10 +26,12 @@ import {
 import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
 import { phonesMatch, readGuestOrderNumbers, rememberGuestOrder } from "./guestOrders";
+import { createReview, listReviews } from "./localReviews";
 import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const checkoutAttempts = new Map<string, { count: number; resetAt: number }>();
+const reviewAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function localAdminEnabled() {
   return !ENV.isProduction || Boolean(ENV.localAdminPassword);
@@ -59,6 +61,18 @@ function allowLoginAttempt(ip: string) {
 
 function allowCheckoutAttempt(ip: string) {
   return allowAttempt(checkoutAttempts, ip, 20);
+}
+
+function allowReviewAttempt(ip: string) {
+  return allowAttempt(reviewAttempts, ip, 4);
+}
+
+function cleanName(value: string) {
+  return value.replace(/[^A-Za-zÀ-ÿÇĞİÖŞÜçğıöşüâîûÂÎÛ'\s-]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function cleanReviewBody(value: string) {
+  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function passwordsMatch(input: string, expected: string) {
@@ -410,6 +424,32 @@ export const appRouter = router({
       return [...guest, ...owned.filter((order) => !seen.has(order.id))];
     }),
     adminList: adminProcedure.query(() => listOrders()),
+  }),
+
+  review: router({
+    list: publicProcedure.query(() => listReviews()),
+    create: publicProcedure
+      .input(z.object({
+        firstName: z.string().trim().max(40),
+        lastName: z.string().trim().max(40),
+        rating: z.number().int().min(1).max(5),
+        body: z.string().trim().max(400),
+      }))
+      .mutation(({ input, ctx }) => {
+        if (!allowReviewAttempt(buyerIp(ctx.req))) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Biraz ara ver. Yeni yorum için sonra tekrar dene." });
+        }
+        const firstName = cleanName(input.firstName);
+        const lastName = cleanName(input.lastName);
+        const body = cleanReviewBody(input.body);
+        if (firstName.length < 2 || lastName.length < 2) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ad ve soyadı eksiksiz yaz." });
+        }
+        if (body.length < 12) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Yorumun biraz daha uzun olsun." });
+        }
+        return createReview({ firstName, lastName, rating: input.rating, body });
+      }),
   }),
 });
 

@@ -772,6 +772,45 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
   .quick-cart-head h2 { font-size: 36px; }
   .success-page { padding: 48px 16px; }
 }
+
+.home-reviews { padding: 88px 0 110px; border-top: 1px solid rgba(111, 83, 56, .16); background: var(--paper); overflow: hidden; }
+.home-reviews-intro { max-width: 720px; margin-bottom: 42px; }
+.home-reviews-intro h2 { margin: 18px 0 14px; color: var(--ink); font: 500 clamp(52px, 8vw, 96px)/.78 "Cormorant Garamond", Georgia, serif; letter-spacing: -.07em; }
+.home-reviews-intro h2 em { color: var(--terracotta); font-style: italic; }
+.home-reviews-intro p { max-width: 420px; margin: 0; color: var(--muted-foreground); line-height: 1.7; }
+.review-marquee { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.review-rail { display: flex; width: max-content; gap: 18px; padding: 8px 0 36px; animation: review-drift var(--review-span, 42s) linear infinite; }
+.review-marquee:hover .review-rail { animation-play-state: paused; }
+@keyframes review-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.review-empty { margin: 0 auto; padding: 28px 0 40px; color: var(--muted-foreground); text-align: center; }
+.review-card { flex: 0 0 min(340px, 78vw); display: grid; gap: 14px; padding: 22px 22px 24px; border: 1px solid var(--border); background: var(--parchment); }
+.review-card-top { display: flex; align-items: center; gap: 12px; }
+.review-initials { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--terracotta); color: var(--paper); font: 600 14px/1 "Cormorant Garamond", Georgia, serif; letter-spacing: .04em; }
+.review-card strong { display: block; color: var(--ink); font: 600 20px/1.1 "Cormorant Garamond", Georgia, serif; }
+.review-stars { display: flex; gap: 3px; margin-top: 6px; color: var(--terracotta); }
+.review-card p { margin: 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.65; }
+.review-form { display: grid; gap: 16px; max-width: 640px; margin: 8px auto 0; padding: 32px; border: 1px solid var(--border); background: var(--parchment); }
+.review-form h3 { margin: 10px 0 8px; color: var(--ink); font: 500 36px/.9 "Cormorant Garamond", Georgia, serif; letter-spacing: -.04em; }
+.review-form > div > p { margin: 0 0 6px; color: var(--muted-foreground); line-height: 1.65; }
+.review-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.review-form label, .review-rate legend { display: grid; gap: 7px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+.review-form input, .review-form textarea { width: 100%; border: 1px solid var(--border); outline: none; background: rgba(255,255,255,.4); padding: 12px; color: var(--ink); font: 16px/1.45 "DM Sans", sans-serif; }
+.review-form textarea { resize: vertical; min-height: 110px; }
+.review-rate { margin: 0; padding: 0; border: 0; }
+.review-rate div { display: flex; gap: 4px; }
+.review-rate button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; background: transparent; color: #c4b3a1; cursor: pointer; }
+.review-rate button.is-on { color: var(--terracotta); }
+.review-form .primary-cta { justify-self: start; }
+.review-note { margin: 0; color: var(--terracotta); font-size: 13px; }
+@media (max-width: 700px) {
+  .home-reviews { padding: 64px 0 80px; }
+  .review-form { padding: 22px 18px; }
+  .review-form-grid { grid-template-columns: 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .has-motion .motion-reveal,
   .has-motion .motion-stagger > *,
@@ -784,4 +823,5 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
   .page-curtain-mark { animation: none !important; opacity: 0 !important; }
   .page-curtain, .page-curtain * { pointer-events: none !important; }
   .search-panel { max-height: none; opacity: 1; transform: none; pointer-events: auto; transition: none; }
+  .review-rail { animation: none !important; flex-wrap: wrap; width: auto; justify-content: center; transform: none !important; }
 }

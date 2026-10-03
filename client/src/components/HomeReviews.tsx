@@ -1,5 +1,5 @@
 import { Star } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 
 function stars(value: number) {
@@ -13,19 +13,41 @@ function initials(firstName: string, lastName: string) {
 export function ReviewTicker() {
   const reviews = trpc.review.list.useQuery(undefined, { refetchInterval: 12_000 });
   const items = reviews.data ?? [];
-  const rail = useMemo(() => {
-    if (items.length === 0) return [];
-    let copies = Math.max(6, Math.ceil(8 / items.length));
-    if (copies % 2) copies += 1;
-    return Array.from({ length: copies }, () => items).flat();
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
+  const offset = useRef(0);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const rail = railRef.current;
+    if (!viewport || !rail || items.length === 0) return;
+
+    const loopWidth = () => rail.scrollWidth / 2;
+    offset.current = 0;
+    rail.style.transform = "translate3d(0,0,0)";
+
+    let frame = 0;
+    const tick = () => {
+      const width = loopWidth();
+      if (width > 0) {
+        offset.current -= 0.8;
+        if (-offset.current >= width) offset.current += width;
+        rail.style.transform = `translate3d(${offset.current}px,0,0)`;
+      }
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
   }, [items]);
 
-  if (rail.length === 0) return null;
+  if (items.length === 0) return null;
+
+  const rail = [...items, ...items];
 
   return (
     <div className="review-ticker" id="canli-yorumlar" aria-label="Müşteri yorumları">
-      <div className="review-marquee" style={{ "--review-span": `${Math.max(24, items.length * 10)}s` } as React.CSSProperties}>
-        <div className="review-rail">
+      <div className="review-marquee" ref={viewportRef}>
+        <div className="review-rail" ref={railRef}>
           {rail.map((review, index) => (
             <article className="review-chip" key={`${review.id}-${index}`}>
               <span className="review-initials" aria-hidden>{initials(review.firstName, review.lastName)}</span>

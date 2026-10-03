@@ -10,22 +10,57 @@ function initials(firstName: string, lastName: string) {
   return `${firstName.slice(0, 1)}${lastName.slice(0, 1)}`.toLocaleUpperCase("tr-TR");
 }
 
-export function HomeReviews() {
+export function ReviewTicker() {
+  const reviews = trpc.review.list.useQuery(undefined, { refetchInterval: 12_000 });
+  const items = reviews.data ?? [];
+  const rail = useMemo(() => {
+    if (items.length === 0) return [];
+    let copies = Math.max(6, Math.ceil(8 / items.length));
+    if (copies % 2) copies += 1;
+    return Array.from({ length: copies }, () => items).flat();
+  }, [items]);
+
+  if (rail.length === 0) return null;
+
+  return (
+    <div className="review-ticker" id="canli-yorumlar" aria-label="Müşteri yorumları">
+      <div className="review-marquee" style={{ "--review-span": `${Math.max(24, items.length * 10)}s` } as React.CSSProperties}>
+        <div className="review-rail">
+          {rail.map((review, index) => (
+            <article className="review-chip" key={`${review.id}-${index}`}>
+              <span className="review-initials" aria-hidden>{initials(review.firstName, review.lastName)}</span>
+              <div>
+                <strong>{review.firstName} {review.lastName}</strong>
+                <div className="review-stars" aria-hidden>
+                  {stars(review.rating).map((on, star) => (
+                    <Star key={star} size={11} fill={on ? "currentColor" : "none"} />
+                  ))}
+                </div>
+                <p>{review.body}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function HomeReviewForm() {
   const utils = trpc.useUtils();
-  const reviews = trpc.review.list.useQuery(undefined, { refetchInterval: 20_000 });
   const create = trpc.review.create.useMutation({
     onSuccess: () => {
       utils.review.list.invalidate();
       setForm({ firstName: "", lastName: "", rating: 5, body: "" });
-      setNote("Yorumun yayınlandı. Aşağıda kayarak görünür.");
+      setNote("Yorumun yayınlandı. Yukarıdaki bantta kayıyor.");
+      window.setTimeout(() => {
+        document.getElementById("canli-yorumlar")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 80);
     },
     onError: (error) => setNote(error.message),
   });
   const [form, setForm] = useState({ firstName: "", lastName: "", rating: 5, body: "" });
   const [note, setNote] = useState("");
-
-  const items = reviews.data ?? [];
-  const rail = useMemo(() => (items.length ? [...items, ...items] : []), [items]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -35,43 +70,12 @@ export function HomeReviews() {
 
   return (
     <section className="home-reviews" aria-labelledby="reviews-title">
-      <div className="container-carmen home-reviews-intro">
-        <span className="eyebrow">Carmen Antika / Yorumlar</span>
-        <h2 id="reviews-title">Bir cümle <em>bırak.</em></h2>
-        <p>Adını, puanını ve kısa notunu yaz. Yorumun canlı olarak bu bantta kayar.</p>
-      </div>
-
-      <div className="review-marquee" style={{ "--review-span": `${Math.max(36, items.length * 9)}s` } as React.CSSProperties}>
-        {rail.length === 0 ? (
-          <p className="review-empty">İlk yorumu sen yaz.</p>
-        ) : (
-          <div className="review-rail">
-            {rail.map((review, index) => (
-              <article className="review-card" key={`${review.id}-${index}`}>
-                <div className="review-card-top">
-                  <span className="review-initials" aria-hidden>{initials(review.firstName, review.lastName)}</span>
-                  <div>
-                    <strong>{review.firstName} {review.lastName}</strong>
-                    <div className="review-stars" aria-label={`${review.rating} yıldız`}>
-                      {stars(review.rating).map((on, star) => (
-                        <Star key={star} size={13} fill={on ? "currentColor" : "none"} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <p>{review.body}</p>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
-
       <div className="container-carmen">
         <form className="review-form" onSubmit={submit}>
           <div>
-            <span className="eyebrow">Yorum bırak</span>
-            <h3>Parçayı evine aldın mı?</h3>
-            <p>Kısa, dürüst bir not yeter. Puanın ve adın kartta görünür.</p>
+            <span className="eyebrow">Carmen Antika / Yorumlar</span>
+            <h2 id="reviews-title">Bir cümle <em>bırak.</em></h2>
+            <p>Adını, puanını ve kısa notunu yaz. Yayınlanınca anasayfanın üst bandında kayar.</p>
           </div>
           <div className="review-form-grid">
             <label>

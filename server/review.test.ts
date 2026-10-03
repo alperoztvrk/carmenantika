@@ -22,9 +22,8 @@ afterEach(() => {
 });
 
 describe("shop reviews", () => {
-  it("lists seeded notes and publishes a new one", async () => {
-    const listed = await caller().review.list();
-    expect(listed.length).toBeGreaterThanOrEqual(4);
+  it("starts empty and publishes a real note", async () => {
+    expect(await caller().review.list()).toEqual([]);
     const created = await caller().review.create({
       firstName: "Ayşe",
       lastName: "Yılmaz",

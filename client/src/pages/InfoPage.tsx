@@ -1,14 +1,52 @@
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, Phone } from "lucide-react";
 import { Link } from "wouter";
+import { PageRise } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
+import { SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
 
 const content: Record<string, { label: string; title: string; text: string }> = {
-  kargo: { label: "Bilgi / Kargo", title: "Parçan özenle yola çıkar.", text: "Siparişlerin ödemeden sonra 2–4 iş günü içinde hazırlanır. Tekil ve hassas parçaları uygun koruma malzemeleriyle paketler, takip bilgini e-posta ile paylaşırız." },
-  iade: { label: "Bilgi / İade", title: "İçine sinmeyen parça olmasın.", text: "Ürünün kondisyonunu ve hikâyesini her detayına kadar paylaşırız. İade koşulları ve ürün özelindeki uygunluk için sipariş numaranla bize merhaba@carmenantika.com adresinden ulaşabilirsin." },
-  iletisim: { label: "Carmen Antika / İletişim", title: "Bir parça mı arıyorsun?", text: "Eski bir radyon, oyuncak kameran veya hikâyesi olan bir objen mi var? Bize yaz; bit pazarı hikâyelerini dinlemeyi seviyoruz." },
+  kargo: {
+    label: "Bilgi / Kargo",
+    title: "Parçan özenle yola çıkar.",
+    text: "Siparişlerin ödemeden sonra 2–4 iş günü içinde hazırlanır. Antalya içi elden teslim. Şehir dışı kargo ücreti müşteriye aittir. Takip ve sorular için 0552 442 42 28.",
+  },
+  iade: {
+    label: "Bilgi / İade",
+    title: "İçine sinmeyen parça olmasın.",
+    text: "Kondisyonu ürün sayfasında açıkça yazarız. İade ve ürün özelindeki sorular için sipariş numaranla 0552 442 42 28’i ara.",
+  },
+  iletisim: {
+    label: "Carmen Antika / İletişim",
+    title: "Soru, pazarlık, sipariş.",
+    text: "Bir parça hakkında konuşmak, fiyat netleştirmek veya teslimatı sormak için ara. Aynı numara WhatsApp ve arama için geçerlidir.",
+  },
 };
 
 export default function InfoPage({ params }: { params: { topic?: string } }) {
-  const page = content[params.topic ?? "iletisim"] ?? content.iletisim;
-  return <StoreLayout><section className="info-page"><div className="container-carmen"><Link href="/" className="info-back"><ArrowLeft size={15} /> Ana sayfaya dön</Link><span className="eyebrow">{page.label}</span><h1>{page.title}</h1><p>{page.text}</p><a className="primary-cta" href="mailto:merhaba@carmenantika.com">Bize yaz <ArrowRight size={15} /></a></div></section></StoreLayout>;
+  const topic = params.topic ?? "iletisim";
+  const page = content[topic] ?? content.iletisim;
+  const contact = topic === "iletisim";
+  return (
+    <StoreLayout>
+      <PageRise>
+        <section className="info-page">
+          <div className="container-carmen">
+            <Link href="/" className="info-back"><ArrowLeft size={15} /> Ana sayfaya dön</Link>
+            <span className="eyebrow">{page.label}</span>
+            <h1>{page.title}</h1>
+            <p>{page.text}</p>
+            {contact && (
+              <p className="info-phone">
+                <a href={SHOP_PHONE_TEL}>{SHOP_PHONE}</a>
+                <span>Antalya · soru ve pazarlık</span>
+              </p>
+            )}
+            <div className="info-actions">
+              <a className="primary-cta" href={SHOP_PHONE_TEL}><Phone size={15} /> Ara: {SHOP_PHONE}</a>
+            </div>
+          </div>
+        </section>
+      </PageRise>
+    </StoreLayout>
+  );
 }

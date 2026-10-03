@@ -15,6 +15,13 @@
       "when": 1790435805511,
       "tag": "0001_absurd_mindworm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1790526400000,
+      "tag": "0002_customer_phone",
+      "breakpoints": true
     }
   ]
 }

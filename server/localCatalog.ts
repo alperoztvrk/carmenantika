@@ -1,0 +1,219 @@
+import fs from "node:fs";
+import path from "node:path";
+import type { InsertProduct, Product } from "../drizzle/schema";
+
+const stamp = new Date("2024-09-01T10:00:00.000Z");
+
+function piece(input: Omit<Product, "currency" | "imageKey" | "isAvailable" | "isFeatured" | "createdAt" | "updatedAt" | "dimensions" | "tag"> & Partial<Product>): Product {
+  return {
+    currency: "try",
+    imageKey: null,
+    dimensions: null,
+    tag: null,
+    isAvailable: 1,
+    isFeatured: 0,
+    createdAt: stamp,
+    updatedAt: stamp,
+    ...input,
+  };
+}
+
+/** Shown when the shop is opened without a database, so local VS Code runs still have a collection. */
+export const localProducts: Product[] = [
+  piece({
+    id: 9001,
+    slug: "national-cep-radyosu",
+    name: "National Cep Radyosu",
+    category: "Radyolar",
+    era: "1970'ler",
+    priceCents: 245000,
+    shortDescription: "Krem kasa, sıcak bir cızırtı ve hâlâ dönen ibre.",
+    description: "Bir çekmecenin dibinden çıktı. Kadranı tam, hoparlörü yumuşak. Tek parça.",
+    condition: "Çalışır durumda. Kasada dönemine ait küçük izler var.",
+    imageUrl: "/photos/radio.jpg",
+    tag: "Bu hafta",
+    isFeatured: 1,
+  }),
+  piece({
+    id: 9002,
+    slug: "ansco-kutu-kamera",
+    name: "Ansco Kutu Kamera",
+    category: "Kameralar",
+    era: "1903",
+    priceCents: 390000,
+    shortDescription: "Körüklü değil, kutu kadar dürüst bir makine.",
+    description: "Yüzyılın başından kalma bir kutu kamera. Objektifi yerinde, derisi yıpranmış ama bütün.",
+    condition: "Dekoratif ve sağlam. Orijinal deri izleri korunmuş.",
+    imageUrl: "/photos/camera.jpg",
+    tag: "Tek",
+  }),
+  piece({
+    id: 9003,
+    slug: "polaroid-aninda",
+    name: "Anında Çeken Polaroid",
+    category: "Kameralar",
+    era: "1970'ler",
+    priceCents: 320000,
+    shortDescription: "Bir kare, bir bekleme, bir yaz akşamı.",
+    description: "Gövdesi temiz, kayışı orijinal. Anı biriktirmeyi sevenler için.",
+    condition: "Dış yüzeyi çok iyi. Film yuvası eksiksiz.",
+    imageUrl: "/photos/polaroid.jpg",
+  }),
+  piece({
+    id: 9004,
+    slug: "kurmali-oyuncak-secisi",
+    name: "Kurmalı Oyuncak Seçkisi",
+    category: "Oyuncaklar",
+    era: "1950–70",
+    priceCents: 180000,
+    shortDescription: "Teneke, tahta ve biraz toz. Hepsi tek.",
+    description: "Bir tezgâhta yan yana duran küçük kurmalı parçalar. Her birinin yayı hâlâ haber veriyor.",
+    condition: "Oyun izleri görünür. Eksik parça yok.",
+    imageUrl: "/photos/toy.jpg",
+    tag: "Set",
+  }),
+  piece({
+    id: 9005,
+    slug: "cam-golgeler",
+    name: "Cam Gölgeler",
+    category: "Objeler",
+    era: "Erken 20. yy",
+    priceCents: 210000,
+    shortDescription: "Işığı kesen, masayı değiştiren küçük camlar.",
+    description: "Pazar tezgâhında gölge düşüren bir grup eski cam. Her biri ayrı bir evden.",
+    condition: "Çatlak yok. Dip kısımlarında kullanım izi var.",
+    imageUrl: "/photos/frames.jpg",
+  }),
+  piece({
+    id: 9006,
+    slug: "seyahat-daktilosu",
+    name: "Seyahat Daktilosu",
+    category: "Objeler",
+    era: "1960'lar",
+    priceCents: 275000,
+    shortDescription: "Tuşları hâlâ mektup yazmak istiyor.",
+    description: "Kompakt bir seyahat daktilosu. Şeridi kurumuş olabilir, mekanizması akıyor.",
+    condition: "Tuşlar tam. Kasada hafif patina.",
+    imageUrl: "/photos/typewriter.jpg",
+    tag: "Mektupluk",
+  }),
+  piece({
+    id: 9007,
+    slug: "radyo-tezgahi",
+    name: "Radyo Tezgâhı",
+    category: "Radyolar",
+    era: "1930–60",
+    priceCents: 460000,
+    shortDescription: "Bir dükkânın bütün sesi, tek karede.",
+    description: "Üst üste dizilmiş ahşap radyolar. İçlerinden biri senin masana gelir.",
+    condition: "Vitrin parçası. Seçilen gövde ayrıca not edilir.",
+    imageUrl: "/photos/collection.jpg",
+    isFeatured: 1,
+  }),
+  piece({
+    id: 9008,
+    slug: "secilmis-vazolar",
+    name: "Seçilmiş Vazolar",
+    category: "Objeler",
+    era: "Karışık",
+    priceCents: 150000,
+    shortDescription: "Vitrinin en kalabalık, en sessiz köşesi.",
+    description: "Yan yana duran eski vazolar. Sırları farklı, hikâyeleri ortak.",
+    condition: "Tek parça seçilir. Küçük sır sıyrıkları olabilir.",
+    imageUrl: "/photos/story-market.jpg",
+  }),
+];
+
+const memoryProducts: Product[] = localProducts.map((product) => ({ ...product }));
+const persistPath = path.resolve(".data/carmen-catalog.json");
+const persistEnabled = process.env.NODE_ENV !== "test";
+let catalogLoaded = false;
+
+function persistCatalog() {
+  if (!persistEnabled) return;
+  try {
+    fs.mkdirSync(path.dirname(persistPath), { recursive: true });
+    fs.writeFileSync(persistPath, JSON.stringify({
+      products: memoryProducts,
+    }));
+  } catch (error) {
+    console.error("[catalog] persist failed", error instanceof Error ? error.message : error);
+  }
+}
+
+function restoreCatalog() {
+  if (!persistEnabled || catalogLoaded) return;
+  catalogLoaded = true;
+  try {
+    if (!fs.existsSync(persistPath)) return;
+    const saved = JSON.parse(fs.readFileSync(persistPath, "utf8")) as {
+      products?: Array<Product & { createdAt: string; updatedAt: string }>;
+    };
+    if (!Array.isArray(saved.products)) return;
+    memoryProducts.splice(0, memoryProducts.length, ...saved.products.map((product) => ({
+      ...product,
+      createdAt: new Date(product.createdAt),
+      updatedAt: new Date(product.updatedAt),
+    })));
+  } catch (error) {
+    console.error("[catalog] restore failed", error instanceof Error ? error.message : error);
+  }
+}
+
+restoreCatalog();
+
+export function readLocalProducts(includeUnavailable = false) {
+  const list = [...memoryProducts].sort((left, right) => right.id - left.id);
+  return includeUnavailable ? list : list.filter((product) => product.isAvailable === 1);
+}
+
+export function findLocalProduct(slug: string) {
+  return memoryProducts.find((product) => product.slug === slug);
+}
+
+export function findLocalProductById(id: number) {
+  return memoryProducts.find((product) => product.id === id);
+}
+
+export function saveLocalProduct(input: InsertProduct) {
+  const now = new Date();
+  const product: Product = {
+    id: Math.max(9000, ...memoryProducts.map((item) => item.id)) + 1,
+    slug: input.slug,
+    name: input.name,
+    category: input.category,
+    era: input.era,
+    priceCents: input.priceCents,
+    currency: input.currency ?? "try",
+    shortDescription: input.shortDescription,
+    description: input.description,
+    condition: input.condition,
+    dimensions: input.dimensions ?? null,
+    imageUrl: input.imageUrl,
+    imageKey: input.imageKey ?? null,
+    tag: input.tag ?? null,
+    isAvailable: input.isAvailable ?? 1,
+    isFeatured: input.isFeatured ?? 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+  memoryProducts.unshift(product);
+  persistCatalog();
+  return product;
+}
+
+export function patchLocalProduct(id: number, input: Partial<InsertProduct>) {
+  const current = memoryProducts.find((product) => product.id === id);
+  if (!current) return undefined;
+  Object.assign(current, input, { updatedAt: new Date() });
+  persistCatalog();
+  return current;
+}
+
+export function removeLocalProduct(id: number) {
+  const index = memoryProducts.findIndex((product) => product.id === id);
+  if (index < 0) return undefined;
+  const [removed] = memoryProducts.splice(index, 1);
+  persistCatalog();
+  return removed;
+}

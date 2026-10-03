@@ -110,7 +110,6 @@ export function HomeReviewForm() {
           <div>
             <span className="eyebrow">Carmen Antika / Yorumlar</span>
             <h2 id="reviews-title">Bir cümle <em>bırak.</em></h2>
-            <p>Adını, puanını ve kısa notunu yaz. Yayınlanınca anasayfanın üst bandında kayar.</p>
           </div>
           <div className="review-form-grid">
             <label>

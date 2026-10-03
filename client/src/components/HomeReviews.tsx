@@ -13,6 +13,7 @@ function initials(firstName: string, lastName: string) {
 export function ReviewTicker() {
   const reviews = trpc.review.list.useQuery(undefined, { refetchInterval: 12_000 });
   const items = reviews.data ?? [];
+  const signature = items.map((item) => item.id).join(",");
   const viewportRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
   const offset = useRef(0);
@@ -22,34 +23,46 @@ export function ReviewTicker() {
     const rail = railRef.current;
     if (!viewport || !rail || items.length === 0) return;
 
-    const loopWidth = () => rail.scrollWidth / 2;
-    offset.current = 0;
-    rail.style.transform = "translate3d(0,0,0)";
+    const gap = 16;
+    const speed = 72;
+    offset.current = viewport.clientWidth;
+    rail.style.transform = `translate3d(${offset.current}px,0,0)`;
 
     let frame = 0;
-    const tick = () => {
-      const width = loopWidth();
-      if (width > 0) {
-        offset.current -= 0.8;
-        if (-offset.current >= width) offset.current += width;
-        rail.style.transform = `translate3d(${offset.current}px,0,0)`;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(48, now - last);
+      last = now;
+      offset.current -= (speed * dt) / 1000;
+
+      const first = rail.firstElementChild as HTMLElement | null;
+      if (first) {
+        const firstSpan = first.offsetWidth + gap;
+        if (offset.current + firstSpan <= 0) {
+          if (rail.children.length === 1) {
+            offset.current = viewport.clientWidth;
+          } else {
+            rail.appendChild(first);
+            offset.current += firstSpan;
+          }
+        }
       }
+
+      rail.style.transform = `translate3d(${offset.current}px,0,0)`;
       frame = window.requestAnimationFrame(tick);
     };
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [items]);
+  }, [signature, items.length]);
 
   if (items.length === 0) return null;
-
-  const rail = [...items, ...items];
 
   return (
     <div className="review-ticker" id="canli-yorumlar" aria-label="Müşteri yorumları">
       <div className="review-marquee" ref={viewportRef}>
         <div className="review-rail" ref={railRef}>
-          {rail.map((review, index) => (
-            <article className="review-chip" key={`${review.id}-${index}`}>
+          {items.map((review) => (
+            <article className="review-chip" key={review.id}>
               <span className="review-initials" aria-hidden>{initials(review.firstName, review.lastName)}</span>
               <div>
                 <strong>{review.firstName} {review.lastName}</strong>

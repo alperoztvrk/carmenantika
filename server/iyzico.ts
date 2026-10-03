@@ -178,7 +178,8 @@ export async function initializeCheckout(input: IyzicoCheckoutInput) {
   const price = lira(totalCents);
   const { name, surname } = splitName(input.customerName);
   const { gsm, digits } = gsmNumber(input.customerPhone);
-  const address = input.shippingAddress.trim().slice(0, 200);
+  const written = input.shippingAddress.trim().slice(0, 200);
+  const address = written.length >= 5 ? written : [written, "Antalya"].filter(Boolean).join(" ").slice(0, 200);
   const now = stamp();
   const buyer = {
     id: input.orderNumber,

@@ -248,7 +248,6 @@ export const appRouter = router({
         if (phoneDigits.length < 10 || phoneDigits.length > 15) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Telefon numarasını başında 0 ile, eksiksiz yaz." });
         }
-        if (input.shippingAddress.length < 8) throw new TRPCError({ code: "BAD_REQUEST", message: "Teslimat adresi eksik." });
         if (!iyzicoConfigured()) {
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: "iyzico anahtarı yok. Proje klasöründeki .env dosyasına IYZICO_API_KEY ve IYZICO_SECRET_KEY ekleyip sunucuyu yeniden başlat." });
         }
@@ -452,9 +451,6 @@ export const appRouter = router({
         const body = cleanReviewBody(input.body);
         if (firstName.length < 2 || lastName.length < 2) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Ad ve soyadı eksiksiz yaz." });
-        }
-        if (body.length < 12) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Yorumun biraz daha uzun olsun." });
         }
         return createReview({ firstName, lastName, rating: input.rating, body });
       }),

@@ -35,13 +35,20 @@ describe("shop reviews", () => {
     expect(after[0]?.body).toMatch(/evimde/);
   });
 
-  it("rejects a short comment and strips markup", async () => {
+  it("accepts a short comment and strips markup", async () => {
     await expect(caller().review.create({
       firstName: "A",
       lastName: "Yılmaz",
       rating: 5,
       body: "çok kısa",
-    })).rejects.toThrow(/Ad ve soyad|uzun/);
+    })).rejects.toThrow(/Ad ve soyad/);
+    const short = await caller().review.create({
+      firstName: "Ayşe",
+      lastName: "Yılmaz",
+      rating: 5,
+      body: "güzel",
+    });
+    expect(short.body).toBe("güzel");
     const created = await caller().review.create({
       firstName: "Ayşe",
       lastName: "Yılmaz",

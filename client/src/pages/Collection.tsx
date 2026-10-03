@@ -10,7 +10,7 @@ const ease = [0.22, 0.8, 0.24, 1] as const;
 const staggerBlock = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
 
 export default function Collection() {
-  const { data, isLoading, error } = trpc.product.list.useQuery();
+  const { data, isLoading, error } = trpc.product.list.useQuery(undefined, { refetchInterval: 8_000 });
   const [activeCategory, setActiveCategory] = useState("Tümü");
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
 

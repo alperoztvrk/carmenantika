@@ -11,6 +11,7 @@ import {
   archiveProduct,
   createOrder,
   createProduct,
+  deleteOrder,
   deleteProduct,
   getOrderByNumber,
   getProductBySlug,
@@ -26,7 +27,7 @@ import {
 import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
 import { phonesMatch, readGuestOrderNumbers, rememberGuestOrder } from "./guestOrders";
-import { createReview, listReviews } from "./localReviews";
+import { createReview, deleteReview, listReviews } from "./localReviews";
 import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -424,6 +425,13 @@ export const appRouter = router({
       return [...guest, ...owned.filter((order) => !seen.has(order.id))];
     }),
     adminList: adminProcedure.query(() => listOrders()),
+    adminDelete: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        const removed = await deleteOrder(input.id);
+        if (!removed) throw new TRPCError({ code: "NOT_FOUND", message: "Sipariş bulunamadı." });
+        return removed;
+      }),
   }),
 
   review: router({
@@ -449,6 +457,13 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Yorumun biraz daha uzun olsun." });
         }
         return createReview({ firstName, lastName, rating: input.rating, body });
+      }),
+    adminList: adminProcedure.query(() => listReviews()),
+    adminDelete: adminProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(({ input }) => {
+        if (!deleteReview(input.id)) throw new TRPCError({ code: "NOT_FOUND", message: "Yorum bulunamadı." });
+        return { id: input.id };
       }),
   }),
 });

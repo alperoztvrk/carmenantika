@@ -120,6 +120,20 @@ export function saveLocalOrder(input: InsertOrder, items: InsertOrderItem[]) {
   return withItems(order);
 }
 
+export function deleteLocalOrder(id: number) {
+  restore();
+  const index = memoryOrders.findIndex((entry) => entry.id === id);
+  if (index < 0) return undefined;
+  const [removed] = memoryOrders.splice(index, 1);
+  const staleTokens: string[] = [];
+  tokenIndex.forEach((orderNumber, token) => {
+    if (orderNumber === removed.orderNumber || token === removed.stripeCheckoutSessionId) staleTokens.push(token);
+  });
+  staleTokens.forEach((token) => tokenIndex.delete(token));
+  persist();
+  return withItems(removed);
+}
+
 export function patchLocalOrder(id: number, input: Partial<InsertOrder>) {
   restore();
   const order = memoryOrders.find((entry) => entry.id === id);

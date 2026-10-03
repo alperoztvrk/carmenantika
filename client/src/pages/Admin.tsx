@@ -1,4 +1,4 @@
-import { Check, ImagePlus, LogIn, LogOut, PackagePlus, Pencil, Save, ShieldAlert, Trash2, X } from "lucide-react";
+import { Check, ImagePlus, LogIn, LogOut, PackagePlus, Pencil, Save, ShieldAlert, Star, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
@@ -105,6 +105,7 @@ export default function Admin() {
   const isAdmin = user?.role === "admin";
   const products = trpc.product.adminList.useQuery(undefined, { enabled: isAdmin });
   const orders = trpc.order.adminList.useQuery(undefined, { enabled: isAdmin, refetchInterval: 5000 });
+  const reviews = trpc.review.adminList.useQuery(undefined, { enabled: isAdmin, refetchInterval: 5000 });
   const refreshCatalog = () => {
     utils.product.adminList.invalidate();
     utils.product.list.invalidate();
@@ -118,6 +119,21 @@ export default function Admin() {
     onError: (error) => note(readableError(error), false),
   });
   const upload = trpc.product.adminUploadImage.useMutation();
+  const removeReview = trpc.review.adminDelete.useMutation({
+    onSuccess: () => {
+      utils.review.adminList.invalidate();
+      utils.review.list.invalidate();
+    },
+    onError: (error) => note(readableError(error), false),
+  });
+  const removeOrder = trpc.order.adminDelete.useMutation({
+    onSuccess: () => {
+      utils.order.adminList.invalidate();
+      utils.order.mine.invalidate();
+      refreshCatalog();
+    },
+    onError: (error) => note(readableError(error), false),
+  });
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -146,6 +162,14 @@ export default function Admin() {
     const parsedPrice = priceToCents(form.price);
     const payload = { name: form.name, category: form.category, era: form.era, priceCents: Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : 0, shortDescription: form.shortDescription, description: form.description, condition: form.condition, dimensions: form.dimensions || undefined, imageUrl: form.imageUrl, imageKey: form.imageKey || undefined, tag: form.tag || undefined, isAvailable: form.isAvailable ? 1 : 0, isFeatured: form.isFeatured ? 1 : 0 };
     if (editingId) update.mutate({ id: editingId, data: payload }); else create.mutate(payload);
+  }
+  function dropReview(id: number, name: string) {
+    if (!window.confirm(`“${name}” yorumu silinsin mi? Anasayfadan da kalkar.`)) return;
+    removeReview.mutate({ id });
+  }
+  function dropOrder(id: number, orderNumber: string) {
+    if (!window.confirm(`${orderNumber} silinsin mi? Müşterinin sipariş listesinden de kalkar.`)) return;
+    removeOrder.mutate({ id });
   }
   function removeProduct(id: number) {
     const product = products.data?.find((item) => item.id === id);
@@ -252,23 +276,63 @@ export default function Admin() {
                 </div>
               </section>
             </div>
+            <div className="admin-manage">
+            <section className="admin-panel admin-reviews">
+              <div className="admin-panel-head">
+                <div>
+                  <span className="eyebrow">Müşteri notları</span>
+                  <h2>Yorumlar</h2>
+                </div>
+                <span className="admin-muted">Canlı · {reviews.data?.length ?? 0}</span>
+              </div>
+              {(reviews.data ?? []).length === 0 ? (
+                <p className="admin-muted">Henüz yorum yok. Biri yazınca burada görünür.</p>
+              ) : (
+                <div className="admin-review-list">
+                  {reviews.data?.map((review) => (
+                    <article className="admin-review-row" key={review.id}>
+                      <div>
+                        <div className="admin-review-meta">
+                          <strong>{review.firstName} {review.lastName}</strong>
+                          <span className="review-stars" aria-label={`${review.rating} yıldız`}>
+                            {Array.from({ length: 5 }, (_, star) => (
+                              <Star key={star} size={12} fill={star < review.rating ? "currentColor" : "none"} />
+                            ))}
+                          </span>
+                          <small>{new Date(review.createdAt).toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</small>
+                        </div>
+                        <p>{review.body}</p>
+                      </div>
+                      <div className="admin-row-actions">
+                        <button type="button" aria-label="Yorumu sil" disabled={removeReview.isPending} onClick={() => dropReview(review.id, `${review.firstName} ${review.lastName}`)}><Trash2 size={15} /></button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
             <section className="admin-panel admin-orders">
               <div className="admin-panel-head">
                 <div>
                   <span className="eyebrow">Sipariş akışı</span>
                   <h2>Son siparişler</h2>
                 </div>
-                <span className="admin-muted">Canlı · iyzico</span>
+                <span className="admin-muted">Canlı · {orders.data?.length ?? 0}</span>
               </div>
               {(orders.data ?? []).length === 0 ? (
-                <p className="admin-muted">Henüz sipariş yok. Ödeme başladığında burada görünecek.</p>
+                <p className="admin-muted">Henüz sipariş yok. Ödeme başladığında burada görünür. Silmediğin siparişler burada kalır.</p>
               ) : (
                 <div className="admin-order-list">
                   {orders.data?.map((order) => (
                     <div className="admin-order-row" key={order.id}>
                       <div className="admin-order-top">
                         <strong>{order.orderNumber}</strong>
-                        <em>{orderStatusLabel[order.status] ?? order.status}</em>
+                        <div className="admin-order-tools">
+                          <em>{orderStatusLabel[order.status] ?? order.status}</em>
+                          <div className="admin-row-actions">
+                            <button type="button" aria-label="Siparişi sil" disabled={removeOrder.isPending} onClick={() => dropOrder(order.id, order.orderNumber)}><Trash2 size={15} /></button>
+                          </div>
+                        </div>
                       </div>
                       <span className="admin-order-who">{order.customerName} · {order.customerPhone || "telefon yok"}</span>
                       {order.shippingAddress ? <span className="admin-order-address">{order.shippingAddress}</span> : null}
@@ -279,6 +343,7 @@ export default function Admin() {
                 </div>
               )}
             </section>
+            </div>
           </div>
         </section>
       </PageRise>

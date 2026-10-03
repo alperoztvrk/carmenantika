@@ -11,7 +11,7 @@ function initials(firstName: string, lastName: string) {
 }
 
 export function ReviewTicker() {
-  const reviews = trpc.review.list.useQuery(undefined, { refetchInterval: 12_000 });
+  const reviews = trpc.review.list.useQuery(undefined, { refetchInterval: 5_000 });
   const items = reviews.data ?? [];
   const signature = items.map((item) => item.id).join(",");
   const viewportRef = useRef<HTMLDivElement>(null);

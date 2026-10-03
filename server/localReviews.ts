@@ -60,6 +60,15 @@ export function listReviews() {
     .map((review) => ({ ...review }));
 }
 
+export function deleteReview(id: number) {
+  restore();
+  const index = memory.findIndex((review) => review.id === id);
+  if (index < 0) return false;
+  memory.splice(index, 1);
+  persist();
+  return true;
+}
+
 export function createReview(input: { firstName: string; lastName: string; rating: number; body: string }) {
   restore();
   const review: ShopReview = {

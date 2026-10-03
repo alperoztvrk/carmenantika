@@ -13,7 +13,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, removeLocalProduct, saveLocalProduct } from "./localCatalog";
-import { findLocalOrder, findLocalOrderByNumber, findLocalOrderBySession, findLatestPendingLocalOrder, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
+import { deleteLocalOrder, findLocalOrder, findLocalOrderByNumber, findLocalOrderBySession, findLatestPendingLocalOrder, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -219,6 +219,31 @@ export async function listOrders() {
   if (!db) return readLocalOrders();
   const rows = await db.select().from(orders).orderBy(desc(orders.createdAt));
   return withOrderItems(rows);
+}
+
+const holdingStatuses = new Set(["pending", "paid", "fulfilled"]);
+
+export async function deleteOrder(id: number) {
+  const order = await getOrderById(id);
+  if (!order) return undefined;
+  const db = await getDb();
+  if (!db) {
+    if (!deleteLocalOrder(id)) return undefined;
+  } else {
+    await db.delete(orderItems).where(eq(orderItems.orderId, id));
+    await db.delete(orders).where(eq(orders.id, id));
+  }
+  if (holdingStatuses.has(order.status)) {
+    const remaining = await listOrders();
+    const stillHeld = new Set(
+      remaining
+        .filter((entry) => holdingStatuses.has(entry.status))
+        .flatMap((entry) => entry.items.map((item) => item.productId)),
+    );
+    const release = order.items.map((item) => item.productId).filter((productId) => !stillHeld.has(productId));
+    await updateProductsAvailability(release, 1);
+  }
+  return { id };
 }
 
 export function makeOrderNumber() {

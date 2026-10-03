@@ -14,7 +14,7 @@ const statusLabel: Record<string, string> = {
 
 export default function Orders() {
   const utils = trpc.useUtils();
-  const { data: orders, isLoading } = trpc.order.mine.useQuery();
+  const { data: orders, isLoading } = trpc.order.mine.useQuery(undefined, { refetchInterval: 5_000 });
   const lookup = trpc.order.lookup.useMutation({
     onSuccess: () => {
       utils.order.mine.invalidate();

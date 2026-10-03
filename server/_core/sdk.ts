@@ -282,7 +282,7 @@ class SDKServer {
         await db.upsertUser({
           openId: "local-admin",
           name: session.name || "Carmen",
-          email: "merhaba@carmenantika.com",
+          email: null,
           loginMethod: "local",
           role: "admin",
           lastSignedIn: signedInAt,
@@ -296,7 +296,7 @@ class SDKServer {
         id: 1,
         openId: "local-admin",
         name: session.name || "Carmen",
-        email: "merhaba@carmenantika.com",
+        email: null,
         loginMethod: "local",
         role: "admin",
         createdAt: signedInAt,

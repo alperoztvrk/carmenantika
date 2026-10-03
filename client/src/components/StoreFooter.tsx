@@ -1,6 +1,6 @@
 import { MotionConfig, motion } from "framer-motion";
 import { Link } from "wouter";
-import { SHOP_EMAIL, SHOP_MAILTO, SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
+import { SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
 
@@ -37,7 +37,6 @@ export function StoreFooter() {
             <h3>Bizi bul</h3>
             <p>Antalya</p>
             <a href={SHOP_PHONE_TEL}>{SHOP_PHONE}</a>
-            <a href={SHOP_MAILTO}>{SHOP_EMAIL}</a>
           </div>
         </div>
         <div className="footer-bottom">

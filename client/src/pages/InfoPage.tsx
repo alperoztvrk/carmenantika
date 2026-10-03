@@ -1,8 +1,8 @@
-import { ArrowLeft, ArrowRight, Phone } from "lucide-react";
+import { ArrowLeft, Phone } from "lucide-react";
 import { Link } from "wouter";
 import { PageRise } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
-import { SHOP_EMAIL, SHOP_MAILTO, SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
+import { SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
 
 const content: Record<string, { label: string; title: string; text: string }> = {
   kargo: {
@@ -13,7 +13,7 @@ const content: Record<string, { label: string; title: string; text: string }> = 
   iade: {
     label: "Bilgi / İade",
     title: "İçine sinmeyen parça olmasın.",
-    text: "Kondisyonu ürün sayfasında açıkça yazarız. İade ve ürün özelindeki sorular için sipariş numaranla 0552 442 42 28’i ara veya merhaba@carmenantika.com adresine yaz.",
+    text: "Kondisyonu ürün sayfasında açıkça yazarız. İade ve ürün özelindeki sorular için sipariş numaranla 0552 442 42 28’i ara.",
   },
   iletisim: {
     label: "Carmen Antika / İletişim",
@@ -43,7 +43,6 @@ export default function InfoPage({ params }: { params: { topic?: string } }) {
             )}
             <div className="info-actions">
               <a className="primary-cta" href={SHOP_PHONE_TEL}><Phone size={15} /> Ara: {SHOP_PHONE}</a>
-              <a className="outline-cta" href={SHOP_MAILTO}>{SHOP_EMAIL} <ArrowRight size={15} /></a>
             </div>
           </div>
         </section>

@@ -523,7 +523,6 @@ html.scroll-down, html { --reveal-y: 44px; }
   .hero-only { min-height: auto; }
   .catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .detail-layout, .checkout-layout, .admin-layout, .admin-gate { grid-template-columns: 1fr; }
-  .detail-copy { order: -1; }
   .story-page-intro { grid-template-columns: 1fr; gap: 30px; }
   .story-page-grid { grid-template-columns: 1fr; }
   .admin-layout, .admin-manage { grid-template-columns: 1fr; gap: 18px; }

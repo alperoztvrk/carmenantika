@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 import { ADMIN_SESSION_MS, COOKIE_NAME } from "@shared/const";
+import { MAX_PRODUCT_IMAGES, packGallery, parseGallery } from "@shared/productImages";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import type { InsertProduct } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
@@ -116,18 +118,80 @@ async function ordersForGuest(req: { headers: { cookie?: string } }) {
 const productFields = {
   name: z.string(),
   category: z.string(),
-  era: z.string(),
   priceCents: z.number().int().min(0),
-  shortDescription: z.string(),
   description: z.string(),
-  condition: z.string(),
-  dimensions: z.string().optional(),
-  imageUrl: z.string(),
+  imageUrl: z.string().optional(),
+  imageUrls: z.array(z.string().min(1)).max(MAX_PRODUCT_IMAGES).optional(),
   imageKey: z.string().optional(),
-  tag: z.string().optional(),
   isAvailable: z.number().int().min(0).max(1).optional(),
-  isFeatured: z.number().int().min(0).max(1).optional(),
 };
+
+type ProductEditorInput = {
+  name: string;
+  category: string;
+  priceCents: number;
+  description: string;
+  imageUrl?: string;
+  imageUrls?: string[];
+  imageKey?: string;
+  isAvailable?: number;
+};
+
+function withGallery<T extends { imageUrl: string; gallery?: string | null }>(product: T) {
+  return { ...product, imageUrls: parseGallery(product.gallery, product.imageUrl) };
+}
+
+function packedImages(input: Pick<ProductEditorInput, "imageUrl" | "imageUrls">) {
+  return packGallery(input.imageUrls?.length ? input.imageUrls : [input.imageUrl ?? ""]);
+}
+
+function storedProduct(input: ProductEditorInput): Omit<InsertProduct, "slug"> {
+  const packed = packedImages(input);
+  const description = input.description.trim();
+  const name = input.name.trim() || "İsimsiz parça";
+  return {
+    name,
+    category: input.category.trim() || "Objeler",
+    era: "",
+    priceCents: input.priceCents,
+    currency: "try",
+    shortDescription: description.slice(0, 500) || name,
+    description,
+    condition: "",
+    dimensions: null,
+    imageUrl: packed.imageUrl,
+    imageKey: input.imageKey,
+    gallery: packed.gallery,
+    tag: null,
+    isAvailable: input.isAvailable ?? 1,
+    isFeatured: 0,
+  };
+}
+
+function storedProductPatch(input: Partial<ProductEditorInput>): Partial<InsertProduct> {
+  const next: Partial<InsertProduct> = {
+    era: "",
+    condition: "",
+    dimensions: null,
+    tag: null,
+    isFeatured: 0,
+  };
+  if (input.name !== undefined) next.name = input.name.trim() || "İsimsiz parça";
+  if (input.category !== undefined) next.category = input.category.trim() || "Objeler";
+  if (input.priceCents !== undefined) next.priceCents = input.priceCents;
+  if (input.description !== undefined) {
+    next.description = input.description.trim();
+    next.shortDescription = next.description.slice(0, 500) || next.name || "";
+  }
+  if (input.imageUrls !== undefined || input.imageUrl !== undefined) {
+    const packed = packedImages(input);
+    next.imageUrl = packed.imageUrl;
+    next.gallery = packed.gallery;
+  }
+  if (input.imageKey !== undefined) next.imageKey = input.imageKey;
+  if (input.isAvailable !== undefined) next.isAvailable = input.isAvailable;
+  return next;
+}
 
 const slugify = (value: string) => value
   .toLocaleLowerCase("tr-TR")
@@ -181,7 +245,7 @@ export const appRouter = router({
   }),
 
   product: router({
-    list: publicProcedure.query(() => listProducts(false)),
+    list: publicProcedure.query(async () => (await listProducts(false)).map(withGallery)),
     present: publicProcedure
       .input(z.object({ ids: z.array(z.number().int().positive()).max(30) }))
       .query(async ({ input }) => {
@@ -196,12 +260,15 @@ export const appRouter = router({
             name: product.name,
             priceCents: product.priceCents,
             imageUrl: product.imageUrl,
-            shortDescription: product.shortDescription,
+            shortDescription: product.description || product.shortDescription,
             isAvailable: product.isAvailable,
           }));
       }),
-    getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(({ input }) => getProductBySlug(input.slug)),
-    adminList: adminProcedure.query(() => listProducts(true)),
+    getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ input }) => {
+      const product = await getProductBySlug(input.slug);
+      return product ? withGallery(product) : product;
+    }),
+    adminList: adminProcedure.query(async () => (await listProducts(true)).map(withGallery)),
     adminUploadImage: adminProcedure
       .input(z.object({ fileName: z.string().min(1).max(180), contentType: z.string().min(1), dataBase64: z.string().min(20) }))
       .mutation(async ({ input }) => {
@@ -217,10 +284,20 @@ export const appRouter = router({
       }),
     adminCreate: adminProcedure
       .input(z.object(productFields))
-      .mutation(({ input }) => createProduct({ ...input, name: input.name.trim() || "İsimsiz parça", category: input.category.trim() || "Objeler", slug: `${slugify(input.name) || "parca"}-${Date.now().toString(36)}`, currency: "try", isAvailable: input.isAvailable ?? 1, isFeatured: input.isFeatured ?? 0 })),
+      .mutation(async ({ input }) => {
+        const stored = storedProduct(input);
+        const created = await createProduct({
+          ...stored,
+          slug: `${slugify(stored.name) || "parca"}-${Date.now().toString(36)}`,
+        });
+        return created ? withGallery(created) : created;
+      }),
     adminUpdate: adminProcedure
       .input(z.object({ id: z.number().int().positive(), data: z.object(productFields).partial() }))
-      .mutation(({ input }) => updateProduct(input.id, input.data)),
+      .mutation(async ({ input }) => {
+        const updated = await updateProduct(input.id, storedProductPatch(input.data));
+        return updated ? withGallery(updated) : updated;
+      }),
     adminArchive: adminProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(({ input }) => archiveProduct(input.id)),

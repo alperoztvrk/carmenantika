@@ -20,7 +20,7 @@ export default function Home() {
               <motion.span className="hero-line" variants={heroItem}><em>bugün</em> için seçilmiş.</motion.span>
             </motion.h1>
             <motion.p className="hero-intro" variants={heroItem}>
-              Carmen Antika, ikinci el radyo, oyuncak, kamera ve seçilmiş objeleri Antalya’dan gönderir. Her parça tek; kondisyonu açıkça yazılır.
+              Carmen Antika, ikinci el radyo, oyuncak, kamera ve seçilmiş objeleri Antalya’dan gönderir. Her parça tek; açıklaması ve fiyatı ürün sayfasında durur.
             </motion.p>
             <motion.div className="cta-row" variants={heroItem}>
               <Link className="primary-cta" href="/koleksiyon">Koleksiyonu keşfet <ArrowRight size={15} /></Link>

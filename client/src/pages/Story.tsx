@@ -33,7 +33,7 @@ export default function Story() {
               <motion.span className="hero-line" variants={heroItem}><em>iz</em> biriktiriyoruz.</motion.span>
             </motion.h1>
             <motion.p variants={heroItem}>
-              Antalya’da ikinci el radyo, oyuncak, kamera ve objeler seçiyoruz. Her parça tek; kondisyonu ve hikâyesi ürün sayfasında durur.
+              Antalya’da ikinci el radyo, oyuncak, kamera ve objeler seçiyoruz. Her parça tek; açıklaması ve fiyatı ürün sayfasında durur.
             </motion.p>
           </motion.div>
         </HeroEnter>

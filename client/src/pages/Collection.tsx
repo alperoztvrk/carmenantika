@@ -19,7 +19,7 @@ export default function Collection() {
     const normalized = query.trim().toLocaleLowerCase("tr-TR");
     return (data ?? []).filter((product) => {
       const categoryMatch = activeCategory === "Tümü" || product.category === activeCategory;
-      const searchMatch = !normalized || `${product.name} ${product.era} ${product.shortDescription}`.toLocaleLowerCase("tr-TR").includes(normalized);
+      const searchMatch = !normalized || `${product.name} ${product.category} ${product.description}`.toLocaleLowerCase("tr-TR").includes(normalized);
       return categoryMatch && searchMatch;
     });
   }, [activeCategory, data, query]);

@@ -4,12 +4,13 @@ import type { InsertProduct, Product } from "../drizzle/schema";
 
 const stamp = new Date("2024-09-01T10:00:00.000Z");
 
-function piece(input: Omit<Product, "currency" | "imageKey" | "isAvailable" | "isFeatured" | "createdAt" | "updatedAt" | "dimensions" | "tag"> & Partial<Product>): Product {
+function piece(input: Omit<Product, "currency" | "imageKey" | "isAvailable" | "isFeatured" | "createdAt" | "updatedAt" | "dimensions" | "tag" | "gallery"> & Partial<Product>): Product {
   return {
     currency: "try",
     imageKey: null,
     dimensions: null,
     tag: null,
+    gallery: null,
     isAvailable: 1,
     isFeatured: 0,
     createdAt: stamp,
@@ -152,6 +153,7 @@ function restoreCatalog() {
     if (!Array.isArray(saved.products)) return;
     memoryProducts.splice(0, memoryProducts.length, ...saved.products.map((product) => ({
       ...product,
+      gallery: product.gallery ?? null,
       createdAt: new Date(product.createdAt),
       updatedAt: new Date(product.updatedAt),
     })));
@@ -191,6 +193,7 @@ export function saveLocalProduct(input: InsertProduct) {
     dimensions: input.dimensions ?? null,
     imageUrl: input.imageUrl,
     imageKey: input.imageKey ?? null,
+    gallery: input.gallery ?? null,
     tag: input.tag ?? null,
     isAvailable: input.isAvailable ?? 1,
     isFeatured: input.isFeatured ?? 0,

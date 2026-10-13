@@ -1,5 +1,6 @@
 import { Check, ImagePlus, LogIn, LogOut, PackagePlus, Pencil, Save, ShieldAlert, Star, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { MAX_PRODUCT_IMAGES, parseGallery } from "@shared/productImages";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
 import { PageRise } from "@/components/PageMotion";
@@ -56,8 +57,8 @@ function AdminLogin() {
   );
 }
 
-const categoryChoices = ["Radyolar", "Kameralar", "Oyuncaklar", "Objeler", "Kitap & Plak", "Ev & Sofra"];
-const emptyForm = { name: "", category: "Objeler", era: "", price: "", shortDescription: "", description: "", condition: "", dimensions: "", imageUrl: "", imageKey: "", tag: "", isAvailable: true, isFeatured: false };
+const fillHint = "Lütfen doldurun";
+const emptyForm = { name: "", category: "", price: "", description: "", imageUrls: [] as string[], imageKey: "", isAvailable: true };
 type ProductForm = typeof emptyForm;
 
 function priceToCents(value: string) {
@@ -65,19 +66,36 @@ function priceToCents(value: string) {
   return Math.round(Number(normalized) * 100);
 }
 
-function toForm(product: any): ProductForm {
-  return { name: product.name, category: product.category, era: product.era, price: String(product.priceCents / 100), shortDescription: product.shortDescription, description: product.description, condition: product.condition, dimensions: product.dimensions ?? "", imageUrl: product.imageUrl, imageKey: product.imageKey ?? "", tag: product.tag ?? "", isAvailable: Boolean(product.isAvailable), isFeatured: Boolean(product.isFeatured) };
+function toForm(product: {
+  name: string;
+  category: string;
+  priceCents: number;
+  description: string;
+  imageUrl?: string | null;
+  gallery?: string | null;
+  imageUrls?: string[];
+  imageKey?: string | null;
+  isAvailable?: number | boolean | null;
+}): ProductForm {
+  const imageUrls = product.imageUrls?.length ? product.imageUrls : parseGallery(product.gallery, product.imageUrl);
+  return {
+    name: product.name,
+    category: product.category,
+    price: String(product.priceCents / 100),
+    description: product.description,
+    imageUrls,
+    imageKey: product.imageKey ?? "",
+    isAvailable: Boolean(product.isAvailable),
+  };
 }
 
 const fieldLabels: Record<string, string> = {
   name: "Ürün adı",
   category: "Kategori",
-  era: "Dönem",
   priceCents: "Fiyat",
-  shortDescription: "Kısa tanım",
   description: "Açıklama",
-  condition: "Kondisyon",
   imageUrl: "Görsel",
+  imageUrls: "Görsel",
 };
 
 function readableError(error: { message: string }) {
@@ -144,23 +162,66 @@ export default function Admin() {
   function closeEditor() { setForm(emptyForm); setEditingId(null); setMessage(""); }
   function reset() { closeEditor(); note("Ürün kaydedildi. Koleksiyonda görünüyor."); }
   function setField<K extends keyof ProductForm>(key: K, value: ProductForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
-  async function handleFile(file?: File) {
-    if (!file) return;
-    setUploading(true); note("");
-    let dataUrl = "";
+  async function readFile(file: File) {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
     try {
-      dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
-      const result = await upload.mutateAsync({ fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "-"), contentType: file.type, dataBase64: dataUrl.split(",")[1] ?? "" });
-      setForm((current) => ({ ...current, imageUrl: result.url, imageKey: result.key })); note("Görsel yüklendi.");
+      const result = await upload.mutateAsync({
+        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "-"),
+        contentType: file.type,
+        dataBase64: dataUrl.split(",")[1] ?? "",
+      });
+      return result.url;
     } catch {
-      if (dataUrl) { setForm((current) => ({ ...current, imageUrl: dataUrl, imageKey: "" })); note("Görsel bu oturumda yerelde tutuluyor."); }
-      else note("Görsel yüklenemedi.", false);
-    } finally { setUploading(false); }
+      return dataUrl;
+    }
+  }
+  async function handleFiles(files?: FileList | null) {
+    if (!files?.length) return;
+    setUploading(true);
+    note("");
+    const room = MAX_PRODUCT_IMAGES - form.imageUrls.length;
+    const selected = Array.from(files).slice(0, Math.max(0, room));
+    const uploaded: string[] = [];
+    for (const file of selected) {
+      uploaded.push(await readFile(file));
+    }
+    setForm((current) => ({ ...current, imageUrls: [...current.imageUrls, ...uploaded].slice(0, MAX_PRODUCT_IMAGES) }));
+    if (files.length > room) note(`En fazla ${MAX_PRODUCT_IMAGES} görsel yüklenebilir.`);
+    else note(uploaded.length > 1 ? "Görseller yüklendi." : "Görsel yüklendi.");
+    setUploading(false);
+  }
+  function dropImage(index: number) {
+    setForm((current) => ({ ...current, imageUrls: current.imageUrls.filter((_, item) => item !== index) }));
   }
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const parsedPrice = priceToCents(form.price);
-    const payload = { name: form.name, category: form.category, era: form.era, priceCents: Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : 0, shortDescription: form.shortDescription, description: form.description, condition: form.condition, dimensions: form.dimensions || undefined, imageUrl: form.imageUrl, imageKey: form.imageKey || undefined, tag: form.tag || undefined, isAvailable: form.isAvailable ? 1 : 0, isFeatured: form.isFeatured ? 1 : 0 };
+    const missing = [
+      !form.name.trim() && "ürün adı",
+      !form.category.trim() && "kategori",
+      !(Number.isFinite(parsedPrice) && parsedPrice > 0) && "fiyat",
+      !form.description.trim() && "açıklama",
+      form.imageUrls.length === 0 && "görsel",
+    ].filter((item): item is string => Boolean(item));
+    if (missing.length) {
+      note(`Lütfen doldurun: ${missing.join(", ")}.`, false);
+      return;
+    }
+    const payload = {
+      name: form.name,
+      category: form.category,
+      priceCents: parsedPrice,
+      description: form.description,
+      imageUrl: form.imageUrls[0],
+      imageUrls: form.imageUrls,
+      imageKey: form.imageKey || undefined,
+      isAvailable: form.isAvailable ? 1 : 0,
+    };
     if (editingId) update.mutate({ id: editingId, data: payload }); else create.mutate(payload);
   }
   function dropReview(id: number, name: string) {
@@ -221,30 +282,40 @@ export default function Admin() {
                   {editingId && <button className="admin-quiet" type="button" onClick={closeEditor}><X size={15} /> İptal</button>}
                 </div>
                 <form className="admin-form" onSubmit={handleSubmit}>
-                  <label>Ürün adı<input value={form.name} onChange={(event) => setField("name", event.target.value)} placeholder="Örn. National Cep Radyosu" /></label>
+                  <label>Ürün adı<input value={form.name} onChange={(event) => setField("name", event.target.value)} placeholder={fillHint} /></label>
                   <div className="form-two">
-                    <label>Kategori<select value={form.category} onChange={(event) => setField("category", event.target.value)}>{(categoryChoices.indexOf(form.category) === -1 ? [form.category].concat(categoryChoices) : categoryChoices).map((category) => <option key={category}>{category}</option>)}</select></label>
-                    <label>Dönem / bilgi<input value={form.era} onChange={(event) => setField("era", event.target.value)} placeholder="1970'ler · çalışır" /></label>
+                    <label>Kategori<input value={form.category} onChange={(event) => setField("category", event.target.value)} placeholder={fillHint} /></label>
+                    <label>Fiyat (₺)<input inputMode="decimal" value={form.price} onChange={(event) => setField("price", event.target.value)} placeholder={fillHint} /></label>
                   </div>
-                  <div className="form-two">
-                    <label>Fiyat (₺)<input inputMode="decimal" value={form.price} onChange={(event) => setField("price", event.target.value)} placeholder="1250" /></label>
-                    <label>Etiket<input value={form.tag} onChange={(event) => setField("tag", event.target.value)} placeholder="Bugün bulundu" /></label>
-                  </div>
-                  <label>Kısa tanım<input value={form.shortDescription} onChange={(event) => setField("shortDescription", event.target.value)} placeholder="Kartta görünecek kısa cümle" /></label>
-                  <label>Hikâyesi / açıklaması<textarea rows={4} value={form.description} onChange={(event) => setField("description", event.target.value)} placeholder="Bu parçayı nerede buldun, neden özel?" /></label>
-                  <label>Kondisyon notu<textarea rows={3} value={form.condition} onChange={(event) => setField("condition", event.target.value)} placeholder="Çalışır durumda, yaşına bağlı izler..." /></label>
-                  <div className="form-two">
-                    <label>Ölçüler<input value={form.dimensions} onChange={(event) => setField("dimensions", event.target.value)} placeholder="18 × 10 × 5 cm" /></label>
-                    <label>Görsel yükle<input type="file" accept="image/*" onChange={(event) => handleFile(event.target.files?.[0])} /></label>
-                  </div>
-                  <div className="upload-box">
-                    {form.imageUrl ? <img src={form.imageUrl} alt="Ürün önizleme" /> : <ImagePlus size={22} />}
-                    {form.imageUrl ? <span>Görsel hazır</span> : <span>Yüklenen görsel burada görünür</span>}
-                    <small>{uploading ? "Yükleniyor..." : "8 MB altında JPG, PNG veya WebP"}</small>
+                  <label>Açıklama<textarea rows={5} value={form.description} onChange={(event) => setField("description", event.target.value)} placeholder={fillHint} /></label>
+                  <label>
+                    Görsel yükle
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      multiple
+                      onChange={(event) => {
+                        void handleFiles(event.target.files);
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <div className={`upload-box ${form.imageUrls.length ? "has-thumbs" : ""}`}>
+                    {form.imageUrls.length ? (
+                      <div className="upload-thumbs">
+                        {form.imageUrls.map((url, index) => (
+                          <figure key={`${url}-${index}`}>
+                            <img src={url} alt={`Ürün görseli ${index + 1}`} />
+                            <button type="button" aria-label="Görseli kaldır" onClick={() => dropImage(index)}><X size={13} /></button>
+                          </figure>
+                        ))}
+                      </div>
+                    ) : <ImagePlus size={22} />}
+                    {form.imageUrls.length ? <span>{form.imageUrls.length} görsel hazır</span> : <span>Yüklenen görseller burada görünür</span>}
+                    <small>{uploading ? "Yükleniyor..." : `Birden fazla görsel · 8 MB altında JPG, PNG veya WebP · en fazla ${MAX_PRODUCT_IMAGES}`}</small>
                   </div>
                   <div className="form-checks">
                     <label className="check-option"><input type="checkbox" checked={form.isAvailable} onChange={(event) => setField("isAvailable", event.target.checked)} /><span>Satışta</span></label>
-                    <label className="check-option"><input type="checkbox" checked={form.isFeatured} onChange={(event) => setField("isFeatured", event.target.checked)} /><span>Öne çıkar</span></label>
                   </div>
                   <button className="admin-submit" disabled={create.isPending || update.isPending || uploading} type="submit">{editingId ? <><Save size={16} /> Güncelle</> : <><PackagePlus size={16} /> Ürünü yayınla</>}</button>
                   {message && <p className={messageOk ? "admin-message" : "admin-message is-error"}>{messageOk ? <Check size={15} /> : <X size={15} />} {message}</p>}
@@ -261,7 +332,7 @@ export default function Admin() {
                 <div className="admin-product-list">
                   {products.isLoading ? <p className="admin-muted">Ürünler yükleniyor...</p> : (products.data ?? []).map((product) => (
                     <div className={`admin-product-row ${product.isAvailable ? "" : "archived"}`} key={product.id}>
-                      <img src={product.imageUrl || "/photos/collection.jpg"} alt="" />
+                      <img src={product.imageUrls?.[0] || product.imageUrl || "/photos/collection.jpg"} alt="" />
                       <div className="admin-product-info">
                         <strong>{product.name}</strong>
                         <span>{product.category} · {(product.priceCents / 100).toLocaleString("tr-TR")} ₺</span>

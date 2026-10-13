@@ -26,6 +26,7 @@ export const products = mysqlTable("products", {
   dimensions: varchar("dimensions", { length: 255 }),
   imageUrl: text("imageUrl").notNull(),
   imageKey: text("imageKey"),
+  gallery: text("gallery"),
   tag: varchar("tag", { length: 100 }),
   isAvailable: int("isAvailable").default(1).notNull(),
   isFeatured: int("isFeatured").default(0).notNull(),

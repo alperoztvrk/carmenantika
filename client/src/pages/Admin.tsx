@@ -312,7 +312,7 @@ export default function Admin() {
                       </div>
                     ) : <ImagePlus size={22} />}
                     {form.imageUrls.length ? <span>{form.imageUrls.length} görsel hazır</span> : <span>Yüklenen görseller burada görünür</span>}
-                    <small>{uploading ? "Yükleniyor..." : `Birden fazla görsel · 8 MB altında JPG, PNG veya WebP · en fazla ${MAX_PRODUCT_IMAGES}`}</small>
+                    <small>{uploading ? "Yükleniyor..." : `Birden fazla görsel · 3 MB altında JPG, PNG veya WebP · en fazla ${MAX_PRODUCT_IMAGES}`}</small>
                   </div>
                   <div className="form-checks">
                     <label className="check-option"><input type="checkbox" checked={form.isAvailable} onChange={(event) => setField("isAvailable", event.target.checked)} /><span>Satışta</span></label>

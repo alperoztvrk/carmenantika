@@ -274,7 +274,7 @@ export const appRouter = router({
       .input(z.object({ fileName: z.string().min(1).max(180), contentType: z.string().min(1), dataBase64: z.string().min(20) }))
       .mutation(async ({ input }) => {
         const data = Buffer.from(input.dataBase64, "base64");
-        if (data.byteLength > 8 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Görsel 8 MB'dan küçük olmalı." });
+        if (data.byteLength > 3 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Görsel 3 MB'dan küçük olmalı." });
         const type = input.contentType.toLowerCase();
         if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(type)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Sadece jpeg, png, webp veya gif yükle." });

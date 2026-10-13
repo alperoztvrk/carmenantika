@@ -13,5 +13,6 @@ jobs:
     steps:
       - name: Wake carmenantika.com
         run: |
-          curl -fsS --retry 2 --retry-delay 8 --max-time 90 https://carmenantika.com/healthz
-          curl -fsS --retry 2 --retry-delay 8 --max-time 90 https://carmenantika.onrender.com/healthz
+          curl -fsSL --retry 2 --retry-delay 8 --max-time 90 https://www.carmenantika.com/healthz
+          curl -fsSL --retry 2 --retry-delay 8 --max-time 90 https://carmenantika.com/healthz
+          curl -fsSL --retry 2 --retry-delay 8 --max-time 90 https://carmenantika.onrender.com/healthz

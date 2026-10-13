@@ -87,7 +87,7 @@ export function HomeReviewForm() {
     onSuccess: () => {
       utils.review.list.invalidate();
       setForm({ firstName: "", lastName: "", rating: 5, body: "" });
-      setNote("Yorumun yayınlandı. Yukarıdaki bantta kayıyor.");
+      setNote("Teşekkürler, yorumun yayınlandı.");
       window.setTimeout(() => {
         document.getElementById("canli-yorumlar")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 80);

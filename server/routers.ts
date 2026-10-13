@@ -249,7 +249,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Telefon numarasını başında 0 ile, eksiksiz yaz." });
         }
         if (!iyzicoConfigured()) {
-          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "iyzico anahtarı yok. Proje klasöründeki .env dosyasına IYZICO_API_KEY ve IYZICO_SECRET_KEY ekleyip sunucuyu yeniden başlat." });
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Online sipariş çok yakında. Şimdilik 0552 442 42 28’i ara, parçanı senin için ayıralım." });
         }
         const liveHost = (() => {
           try {
@@ -260,10 +260,10 @@ export const appRouter = router({
           }
         })();
         if ((ENV.isProduction || liveHost) && iyzicoIsSandbox()) {
-          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Canlı sitede sandbox iyzico anahtarı kullanılamaz. merchant.iyzipay.com canlı anahtarlarını .env dosyasına yazıp sunucuyu yeniden başlat." });
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Online sipariş çok yakında. Şimdilik 0552 442 42 28’i ara, parçanı senin için ayıralım." });
         }
         if ((ENV.isProduction || liveHost) && !/^https:\/\//i.test(ENV.siteUrl)) {
-          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Canlı ödeme için SITE_URL https://senin-domainin.com olmalı." });
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Online sipariş çok yakında. Şimdilik 0552 442 42 28’i ara, parçanı senin için ayıralım." });
         }
         if (!allowCheckoutAttempt(buyerIp(ctx.req))) {
           throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Çok fazla deneme. Bir süre sonra tekrar dene." });
@@ -339,15 +339,12 @@ export const appRouter = router({
           const errorCode = error instanceof Error && "errorCode" in error ? String((error as { errorCode?: string }).errorCode ?? "") : "";
           console.error("[iyzico] checkout failed", errorCode, detail);
           if (/api key|secret key|authorization|imza|signature|api bilgileri/i.test(detail)) {
-            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "iyzico bu anahtarı tanımıyor. merchant.iyzipay.com → Ayarlar → API Anahtarları. Tırnak koyma. Kaydedince sunucuyu yeniden başlat." });
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Ödeme şu an alınamıyor. Lütfen 0552 442 42 28’i ara." });
           }
           if (/aborted|timeout/i.test(detail)) {
-            throw new TRPCError({ code: "TIMEOUT", message: "iyzico yanıt vermedi. Ödemeyi tekrar dene." });
+            throw new TRPCError({ code: "TIMEOUT", message: "Ödeme sayfası yanıt vermedi. Biraz sonra tekrar dene veya 0552 442 42 28’i ara." });
           }
-          if (detail && detail.length < 180 && !/iyzico anahtarı yok/.test(detail)) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: `Ödeme sayfası açılamadı. ${detail}` });
-          }
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Ödeme sayfası açılamadı. Biraz sonra tekrar dene." });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ödeme sayfası açılamadı. Biraz sonra tekrar dene veya 0552 442 42 28’i ara." });
         }
       }),
     confirmPayment: publicProcedure

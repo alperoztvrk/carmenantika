@@ -57,7 +57,7 @@ export default function OrderSuccess() {
                 ? "Kart çekimi tamamlanmadı. Çantanı kontrol edip ödemeyi yeniden deneyebilirsin."
                 : order?.status === "paid" || !order
                   ? "Ödemen alındı. Kısa mesaj ile de bilgilendirme gelecek. Parçanı Antalya'dan özenle paketleyip yola çıkaracağız."
-                  : "iyzico ödemeyi doğruluyor. Bu sayfayı kapatma; onay gelince fişin burada görünür."}
+                  : "Ödemen onaylanıyor. Bu sayfayı kapatma; onay gelince fişin burada görünür."}
             </p>
             {orderNumber && (
               <div className="order-number">

@@ -69,7 +69,7 @@ describe("iyzico checkout", () => {
   it("refuses checkout when the iyzico keys are missing", async () => {
     delete process.env.IYZICO_API_KEY;
     delete process.env.IYZICO_SECRET_KEY;
-    await expect(caller().order.createCheckout(checkoutInput)).rejects.toThrow(/IYZICO_API_KEY/);
+    await expect(caller().order.createCheckout(checkoutInput)).rejects.toThrow(/çok yakında/);
     const present = await caller().product.present({ ids: [9001] });
     expect(present[0]?.isAvailable).toBe(1);
   });
@@ -291,6 +291,6 @@ describe("iyzico checkout", () => {
     process.env.IYZICO_API_KEY = "sandbox-key";
     process.env.IYZICO_SECRET_KEY = "sandbox-secret";
     process.env.SITE_URL = "https://carmenantika.com";
-    await expect(caller().order.createCheckout(checkoutInput)).rejects.toThrow(/sandbox/i);
+    await expect(caller().order.createCheckout(checkoutInput)).rejects.toThrow(/çok yakında/);
   });
 });

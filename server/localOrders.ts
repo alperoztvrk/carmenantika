@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { InsertOrder, InsertOrderItem, Order, OrderItem } from "../drizzle/schema";
 import { patchLocalProduct } from "./localCatalog";
+import { enqueueShopBackup } from "./shopRemote";
 
 const HOLD_MS = 30 * 60 * 1000;
 const persistPath = path.resolve(".data/carmen-orders.json");
@@ -19,19 +20,22 @@ function withItems(order: StoredOrder) {
   return { ...order, items: order.items.map((item) => ({ ...item })) };
 }
 
-function persist() {
-  if (!persistEnabled) return;
-  try {
-    fs.mkdirSync(path.dirname(persistPath), { recursive: true });
-    fs.writeFileSync(persistPath, JSON.stringify({
-      nextOrderId,
-      nextItemId,
-      tokens: Object.fromEntries(tokenIndex),
-      orders: memoryOrders,
-    }));
-  } catch (error) {
-    console.error("[orders] persist failed", error instanceof Error ? error.message : error);
+function persist(remote = true) {
+  if (persistEnabled) {
+    try {
+      fs.mkdirSync(path.dirname(persistPath), { recursive: true });
+      fs.writeFileSync(persistPath, JSON.stringify({
+        savedAt: new Date().toISOString(),
+        nextOrderId,
+        nextItemId,
+        tokens: Object.fromEntries(tokenIndex),
+        orders: memoryOrders,
+      }));
+    } catch (error) {
+      console.error("[orders] persist failed", error instanceof Error ? error.message : error);
+    }
   }
+  if (remote) enqueueShopBackup();
 }
 
 function restore() {
@@ -187,4 +191,41 @@ export function markLocalOrderPaid(orderId: number, paymentIntentId: string | nu
   for (const item of order.items) patchLocalProduct(item.productId, { isAvailable: 0 });
   persist();
   return withItems(order);
+}
+
+export function exportLocalOrders() {
+  restore();
+  return {
+    nextOrderId,
+    nextItemId,
+    tokens: Object.fromEntries(tokenIndex),
+    orders: memoryOrders.map((order) => withItems(order)),
+  };
+}
+
+export function importLocalOrders(input: {
+  nextOrderId?: number;
+  nextItemId?: number;
+  tokens?: Record<string, string>;
+  orders?: Array<StoredOrder & { createdAt: string | Date; updatedAt: string | Date }>;
+}, remote = false) {
+  loaded = true;
+  nextOrderId = input.nextOrderId ?? 1;
+  nextItemId = input.nextItemId ?? 1;
+  tokenIndex.clear();
+  for (const [token, orderNumber] of Object.entries(input.tokens ?? {})) tokenIndex.set(token, orderNumber);
+  memoryOrders.splice(0, memoryOrders.length, ...(input.orders ?? []).map((order) => ({
+    ...order,
+    createdAt: new Date(order.createdAt),
+    updatedAt: new Date(order.updatedAt),
+  })));
+  persist(remote);
+}
+
+export function resetOrdersForTests() {
+  loaded = true;
+  nextOrderId = 1;
+  nextItemId = 1;
+  tokenIndex.clear();
+  memoryOrders.splice(0, memoryOrders.length);
 }

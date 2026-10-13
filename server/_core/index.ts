@@ -9,6 +9,7 @@ import { registerStripeWebhook } from "../stripe";
 import { registerIyzicoCallback } from "../iyzicoCallback";
 import { iyzicoStatusLine } from "../iyzico";
 import { assertLiveConfig } from "../liveGuard";
+import { hydrateShop } from "../shopHydrate";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -77,6 +78,8 @@ async function startServer() {
   } else {
     serveStatic(app);
   }
+
+  await hydrateShop();
 
   const preferredPort = parseInt(process.env.PORT || "3000", 10);
   const port = process.env.NODE_ENV === "production" ? preferredPort : await findAvailablePort(preferredPort);

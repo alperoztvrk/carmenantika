@@ -3,7 +3,7 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { GUEST_ORDERS_COOKIE } from "../shared/const";
 import { phonesMatch } from "./guestOrders";
-import { patchLocalProduct } from "./localCatalog";
+import { patchLocalProduct, saveLocalProduct } from "./localCatalog";
 import { saveLocalOrder } from "./localOrders";
 
 const saved = {
@@ -64,6 +64,20 @@ describe("guest orders", () => {
       quantity: 1,
       imageUrl: "/photos/frames.jpg",
     }]);
+    saveLocalProduct({
+      id: 9005,
+      slug: "test-cam",
+      name: "Cam Gölgeler",
+      category: "Objeler",
+      era: "",
+      priceCents: 1000,
+      shortDescription: "t",
+      description: "t",
+      condition: "",
+      imageUrl: "/photos/frames.jpg",
+      currency: "try",
+      isAvailable: 1,
+    });
     patchLocalProduct(9005, { isAvailable: 1 });
 
     const empty = caller();

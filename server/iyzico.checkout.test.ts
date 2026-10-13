@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
-import { patchLocalProduct } from "./localCatalog";
+import { patchLocalProduct, resetCatalogForTests, saveLocalProduct } from "./localCatalog";
 import { appRouter } from "./routers";
 import { hostedCheckoutUrl, iyzicoConfig, isValidTckn, publicOrigin } from "./iyzico";
 import { completeIyzicoCheckout } from "./iyzicoCallback";
@@ -49,14 +49,21 @@ const checkoutInput = {
   productIds: [9001],
 };
 
+function seedCheckoutProducts() {
+  resetCatalogForTests();
+  saveLocalProduct({ id: 9001, slug: "test-radyo", name: "Test Radyo", category: "Radyolar", era: "", priceCents: 245000, shortDescription: "t", description: "t", condition: "", imageUrl: "/photos/radio.jpg", currency: "try", isAvailable: 1 });
+  saveLocalProduct({ id: 9002, slug: "test-kamera", name: "Test Kamera", category: "Kameralar", era: "", priceCents: 100000, shortDescription: "t", description: "t", condition: "", imageUrl: "/photos/camera.jpg", currency: "try", isAvailable: 1 });
+  saveLocalProduct({ id: 9003, slug: "test-polaroid", name: "Test Polaroid", category: "Kameralar", era: "", priceCents: 100000, shortDescription: "t", description: "t", condition: "", imageUrl: "/photos/polaroid.jpg", currency: "try", isAvailable: 1 });
+  saveLocalProduct({ id: 9004, slug: "test-oyuncak", name: "Test Oyuncak", category: "Oyuncaklar", era: "", priceCents: 100000, shortDescription: "t", description: "t", condition: "", imageUrl: "/photos/toy.jpg", currency: "try", isAvailable: 1 });
+}
+
 afterEach(() => {
   restoreEnv();
   globalThis.fetch = originalFetch;
-  patchLocalProduct(9001, { isAvailable: 1, priceCents: 245000 });
-  patchLocalProduct(9002, { isAvailable: 1 });
-  patchLocalProduct(9003, { isAvailable: 1 });
-  patchLocalProduct(9004, { isAvailable: 1 });
+  seedCheckoutProducts();
 });
+
+seedCheckoutProducts();
 
 describe("iyzico checkout", () => {
   it("reads a quoted sandbox key and sends it to the sandbox api", () => {

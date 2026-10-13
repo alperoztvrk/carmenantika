@@ -30,6 +30,7 @@ import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
 import { phonesMatch, readGuestOrderNumbers, rememberGuestOrder } from "./guestOrders";
 import { createReview, deleteReview, listReviews } from "./localReviews";
+import { flushShopBackup } from "./shopRemote";
 import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -516,7 +517,7 @@ export const appRouter = router({
         rating: z.number().int().min(1).max(5),
         body: z.string().trim().max(400),
       }))
-      .mutation(({ input, ctx }) => {
+      .mutation(async ({ input, ctx }) => {
         if (!allowReviewAttempt(buyerIp(ctx.req))) {
           throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Biraz ara ver. Yeni yorum için sonra tekrar dene." });
         }
@@ -526,13 +527,16 @@ export const appRouter = router({
         if (firstName.length < 2 || lastName.length < 2) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Ad ve soyadı eksiksiz yaz." });
         }
-        return createReview({ firstName, lastName, rating: input.rating, body });
+        const review = createReview({ firstName, lastName, rating: input.rating, body });
+        await flushShopBackup();
+        return review;
       }),
     adminList: adminProcedure.query(() => listReviews()),
     adminDelete: adminProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .mutation(({ input }) => {
+      .mutation(async ({ input }) => {
         if (!deleteReview(input.id)) throw new TRPCError({ code: "NOT_FOUND", message: "Yorum bulunamadı." });
+        await flushShopBackup();
         return { id: input.id };
       }),
   }),

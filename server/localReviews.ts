@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { enqueueShopBackup } from "./shopRemote";
 
 export type ShopReview = {
   id: number;
@@ -16,17 +17,20 @@ const memory: ShopReview[] = [];
 let nextId = 1;
 let loaded = false;
 
-function persist() {
-  if (!persistEnabled) return;
-  try {
-    fs.mkdirSync(path.dirname(persistPath), { recursive: true });
-    fs.writeFileSync(persistPath, JSON.stringify({
-      nextId,
-      reviews: memory,
-    }));
-  } catch (error) {
-    console.error("[reviews] persist failed", error instanceof Error ? error.message : error);
+function persist(remote = true) {
+  if (persistEnabled) {
+    try {
+      fs.mkdirSync(path.dirname(persistPath), { recursive: true });
+      fs.writeFileSync(persistPath, JSON.stringify({
+        savedAt: new Date().toISOString(),
+        nextId,
+        reviews: memory,
+      }));
+    } catch (error) {
+      console.error("[reviews] persist failed", error instanceof Error ? error.message : error);
+    }
   }
+  if (remote) enqueueShopBackup();
 }
 
 function restore() {
@@ -90,4 +94,22 @@ export function resetReviewsForTests() {
   loaded = true;
   nextId = 1;
   memory.splice(0, memory.length);
+}
+
+export function exportLocalReviews() {
+  restore();
+  return {
+    nextId,
+    reviews: memory.map((review) => ({ ...review })),
+  };
+}
+
+export function importLocalReviews(input: { nextId?: number; reviews?: ShopReview[] }, remote = false) {
+  loaded = true;
+  nextId = input.nextId ?? 1;
+  memory.splice(0, memory.length, ...(input.reviews ?? []).map((review) => ({
+    ...review,
+    createdAt: new Date(review.createdAt),
+  })));
+  persist(remote);
 }

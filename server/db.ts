@@ -14,6 +14,7 @@ import {
 import { ENV } from "./_core/env";
 import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, removeLocalProduct, saveLocalProduct } from "./localCatalog";
 import { deleteLocalOrder, findLocalOrder, findLocalOrderByNumber, findLocalOrderBySession, findLatestPendingLocalOrder, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
+import { flushShopBackup } from "./shopRemote";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -100,7 +101,11 @@ export async function getProductsByIds(ids: number[]) {
 
 export async function createProduct(input: InsertProduct) {
   const db = await getDb();
-  if (!db) return saveLocalProduct(input);
+  if (!db) {
+    const created = saveLocalProduct(input);
+    await flushShopBackup();
+    return created;
+  }
   const result = await db.insert(products).values(input);
   const id = Number((result as unknown as { insertId: number }).insertId);
   return getProductById(id);
@@ -108,7 +113,11 @@ export async function createProduct(input: InsertProduct) {
 
 export async function updateProduct(id: number, input: Partial<InsertProduct>) {
   const db = await getDb();
-  if (!db) return patchLocalProduct(id, input);
+  if (!db) {
+    const updated = patchLocalProduct(id, input);
+    await flushShopBackup();
+    return updated;
+  }
   await db.update(products).set({ ...input, updatedAt: new Date() }).where(eq(products.id, id));
   return getProductById(id);
 }
@@ -119,7 +128,11 @@ export async function archiveProduct(id: number) {
 
 export async function deleteProduct(id: number) {
   const db = await getDb();
-  if (!db) return removeLocalProduct(id);
+  if (!db) {
+    const removed = removeLocalProduct(id);
+    await flushShopBackup();
+    return removed;
+  }
   await db.delete(products).where(eq(products.id, id));
   return { id };
 }
@@ -129,6 +142,7 @@ export async function updateProductsAvailability(ids: number[], isAvailable: num
   const db = await getDb();
   if (!db) {
     ids.forEach((id) => patchLocalProduct(id, { isAvailable }));
+    await flushShopBackup();
     return;
   }
   await db.update(products).set({ isAvailable, updatedAt: new Date() }).where(inArray(products.id, ids));
@@ -143,7 +157,11 @@ async function withOrderItems<T extends { id: number }>(rows: T[]) {
 
 export async function createOrder(input: InsertOrder, items: InsertOrderItem[]) {
   const db = await getDb();
-  if (!db) return saveLocalOrder(input, items);
+  if (!db) {
+    const created = saveLocalOrder(input, items);
+    await flushShopBackup();
+    return created;
+  }
   const result = await db.insert(orders).values(input);
   const orderId = Number((result as unknown as { insertId: number }).insertId);
   if (items.length > 0) {
@@ -154,7 +172,11 @@ export async function createOrder(input: InsertOrder, items: InsertOrderItem[]) 
 
 export async function updateOrder(id: number, input: Partial<InsertOrder>) {
   const db = await getDb();
-  if (!db) return patchLocalOrder(id, input);
+  if (!db) {
+    const updated = patchLocalOrder(id, input);
+    await flushShopBackup();
+    return updated;
+  }
   await db.update(orders).set({ ...input, updatedAt: new Date() }).where(eq(orders.id, id));
   return getOrderById(id);
 }
@@ -197,7 +219,11 @@ export async function findLatestPendingOrder() {
 
 export async function markOrderPaid(orderId: number, paymentIntentId: string | null) {
   const db = await getDb();
-  if (!db) return markLocalOrderPaid(orderId, paymentIntentId);
+  if (!db) {
+    const paid = markLocalOrderPaid(orderId, paymentIntentId);
+    await flushShopBackup();
+    return paid;
+  }
   const order = await getOrderById(orderId);
   if (!order) return undefined;
   await db.update(orders).set({ status: "paid", stripePaymentIntentId: paymentIntentId, updatedAt: new Date() }).where(eq(orders.id, orderId));
@@ -229,6 +255,7 @@ export async function deleteOrder(id: number) {
   const db = await getDb();
   if (!db) {
     if (!deleteLocalOrder(id)) return undefined;
+    await flushShopBackup();
   } else {
     await db.delete(orderItems).where(eq(orderItems.orderId, id));
     await db.delete(orders).where(eq(orders.id, id));

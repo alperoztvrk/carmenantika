@@ -7,6 +7,7 @@ import {
   enqueueShopBackup,
   flushShopBackup,
   loadShopBackup,
+  mergeSnapshots,
   openShopBackups,
   type ShopSnapshot,
 } from "./shopRemote";
@@ -36,38 +37,6 @@ function applySnapshot(snapshot: ShopSnapshot) {
     tokens: snapshot.tokens,
     orders: snapshot.orders as Parameters<typeof importLocalOrders>[0]["orders"],
   }, false);
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-}
-
-function mergeById(remote: unknown[] = [], local: unknown[] = []) {
-  const map = new Map<string, unknown>();
-  for (const item of [...remote, ...local]) {
-    const record = asRecord(item);
-    if (!record) continue;
-    const id = record.id;
-    const slug = record.slug;
-    const key = typeof id === "number" ? `id:${id}` : typeof slug === "string" && slug ? `slug:${slug}` : `row:${map.size}`;
-    map.set(key, item);
-  }
-  return Array.from(map.values());
-}
-
-export function mergeSnapshots(remote: ShopSnapshot | null, local: ShopSnapshot): ShopSnapshot {
-  if (!remote) return local;
-  return {
-    version: 1,
-    savedAt: new Date().toISOString(),
-    products: mergeById(remote.products, local.products),
-    reviews: mergeById(remote.reviews, local.reviews),
-    orders: mergeById(remote.orders, local.orders),
-    nextReviewId: Math.max(remote.nextReviewId ?? 1, local.nextReviewId ?? 1),
-    nextOrderId: Math.max(remote.nextOrderId ?? 1, local.nextOrderId ?? 1),
-    nextItemId: Math.max(remote.nextItemId ?? 1, local.nextItemId ?? 1),
-    tokens: { ...(remote.tokens ?? {}), ...(local.tokens ?? {}) },
-  };
 }
 
 function snapshotCount(snapshot: ShopSnapshot | null) {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeSnapshots } from "./shopHydrate";
-import { decryptSnapshot, encryptSnapshot, type ShopSnapshot } from "./shopRemote";
+import { decryptSnapshot, encryptSnapshot, mergeSnapshots, type ShopSnapshot } from "./shopRemote";
 import { DUMMY_PRODUCT_SLUGS, importLocalProducts, readLocalProducts, resetCatalogForTests } from "./localCatalog";
 
 const secret = "shop-backup-secret-key-24chars";

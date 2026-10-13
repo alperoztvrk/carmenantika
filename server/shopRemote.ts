@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { storageGetSignedUrl, storagePutStable } from "./storage";
 
 export type ShopSnapshot = {
   version: 1;
@@ -15,6 +16,7 @@ export type ShopSnapshot = {
 
 const USER_AGENT = "carmen-antika/1.0";
 const RENTRY = "https://rentry.co";
+const FORGE_SNAPSHOT_KEY = "carmen-antika/shop/v1.snapshot";
 
 let capture: (() => ShopSnapshot) | null = null;
 let pending: Promise<void> = Promise.resolve();
@@ -147,8 +149,56 @@ async function readRemote(slug: string) {
   return extractRentryPayload(html);
 }
 
-export async function loadShopBackup(): Promise<ShopSnapshot | null> {
-  if (!persistEnabled() || backupSecret().length < 24) return null;
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function mergeById(remote: unknown[] = [], local: unknown[] = []) {
+  const map = new Map<string, unknown>();
+  for (const item of [...remote, ...local]) {
+    const record = asRecord(item);
+    if (!record) continue;
+    const id = record.id;
+    const slug = record.slug;
+    const key = typeof id === "number" ? `id:${id}` : typeof slug === "string" && slug ? `slug:${slug}` : `row:${map.size}`;
+    map.set(key, item);
+  }
+  return Array.from(map.values());
+}
+
+export function mergeSnapshots(remote: ShopSnapshot | null, local: ShopSnapshot): ShopSnapshot {
+  if (!remote) return local;
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    products: mergeById(remote.products, local.products),
+    reviews: mergeById(remote.reviews, local.reviews),
+    orders: mergeById(remote.orders, local.orders),
+    nextReviewId: Math.max(remote.nextReviewId ?? 1, local.nextReviewId ?? 1),
+    nextOrderId: Math.max(remote.nextOrderId ?? 1, local.nextOrderId ?? 1),
+    nextItemId: Math.max(remote.nextItemId ?? 1, local.nextItemId ?? 1),
+    tokens: { ...(remote.tokens ?? {}), ...(local.tokens ?? {}) },
+  };
+}
+
+async function loadForgeBackup() {
+  try {
+    const url = await storageGetSignedUrl(FORGE_SNAPSHOT_KEY);
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    return decryptSnapshot(await response.text());
+  } catch (error) {
+    console.error("[shop] depo yedeği okunamadı", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+async function saveForgeBackup(snapshot: ShopSnapshot) {
+  await storagePutStable(FORGE_SNAPSHOT_KEY, encryptSnapshot(snapshot), "text/plain; charset=utf-8");
+  console.log("[shop] depo yedeği kaydedildi");
+}
+
+async function loadRentryBackup() {
   const { slug } = backupIds();
   try {
     const payload = await readRemote(slug);
@@ -160,8 +210,7 @@ export async function loadShopBackup(): Promise<ShopSnapshot | null> {
   }
 }
 
-export async function saveShopBackup(snapshot: ShopSnapshot) {
-  if (!persistEnabled() || backupSecret().length < 24) return;
+async function saveRentryBackup(snapshot: ShopSnapshot) {
   const { slug, editCode } = backupIds();
   const payload = encryptSnapshot(snapshot);
   const edited = await rentryPost(`/api/edit/${slug}`, { edit_code: editCode, text: payload });
@@ -180,6 +229,33 @@ export async function saveShopBackup(snapshot: ShopSnapshot) {
     return;
   }
   throw new Error(created.content || edited.content || "yedek yazılamadı");
+}
+
+export async function loadShopBackup(): Promise<ShopSnapshot | null> {
+  if (!persistEnabled() || backupSecret().length < 24) return null;
+  const [forge, rentry] = await Promise.all([loadForgeBackup(), loadRentryBackup()]);
+  if (forge && rentry) return mergeSnapshots(rentry, forge);
+  return forge ?? rentry;
+}
+
+export async function saveShopBackup(snapshot: ShopSnapshot) {
+  if (!persistEnabled() || backupSecret().length < 24) return;
+  const errors: string[] = [];
+  try {
+    await saveForgeBackup(snapshot);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[shop] depo yedeği yazılamadı", message);
+    errors.push(message);
+  }
+  try {
+    await saveRentryBackup(snapshot);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[shop] yedek yazılamadı", message);
+    errors.push(message);
+  }
+  if (errors.length === 2) throw new Error(errors.join(" · "));
 }
 
 export function closeShopBackups() {

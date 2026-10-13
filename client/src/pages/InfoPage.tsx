@@ -13,7 +13,7 @@ const content: Record<string, { label: string; title: string; text: string }> = 
   iade: {
     label: "Bilgi / İade",
     title: "İçine sinmeyen parça olmasın.",
-    text: "Kondisyonu ürün sayfasında açıkça yazarız. İade ve ürün özelindeki sorular için sipariş numaranla 0552 442 42 28’i ara.",
+    text: "Açıklama ürün sayfasında durur. İade ve ürün özelindeki sorular için sipariş numaranla 0552 442 42 28’i ara.",
   },
   iletisim: {
     label: "Carmen Antika / İletişim",

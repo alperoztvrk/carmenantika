@@ -18,6 +18,8 @@ const RENTRY = "https://rentry.co";
 
 let capture: (() => ShopSnapshot) | null = null;
 let pending: Promise<void> = Promise.resolve();
+let backupsOpen = false;
+let queuedWhileClosed = false;
 
 export function bindShopBackup(fn: () => ShopSnapshot) {
   capture = fn;
@@ -85,7 +87,7 @@ function csrfFrom(setCookies: string[]) {
 async function rentrySession() {
   const response = await fetch(RENTRY, {
     headers: { "user-agent": USER_AGENT },
-    signal: AbortSignal.timeout(4000),
+    signal: AbortSignal.timeout(8000),
   });
   const setCookies = response.headers.getSetCookie?.() ?? [];
   const csrf = csrfFrom(setCookies);
@@ -105,7 +107,7 @@ async function rentryPost(path: string, fields: Record<string, string>) {
       "user-agent": USER_AGENT,
     },
     body,
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(10000),
   });
   const text = await response.text();
   try {
@@ -137,7 +139,7 @@ function extractRentryPayload(html: string) {
 async function readRemote(slug: string) {
   const response = await fetch(`${RENTRY}/${slug}`, {
     headers: { "user-agent": USER_AGENT, accept: "text/html" },
-    signal: AbortSignal.timeout(4000),
+    signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) return null;
   const html = await response.text();
@@ -180,8 +182,24 @@ export async function saveShopBackup(snapshot: ShopSnapshot) {
   throw new Error(created.content || edited.content || "yedek yazılamadı");
 }
 
+export function closeShopBackups() {
+  backupsOpen = false;
+}
+
+export function openShopBackups() {
+  backupsOpen = true;
+  if (queuedWhileClosed) {
+    queuedWhileClosed = false;
+    enqueueShopBackup();
+  }
+}
+
 export function enqueueShopBackup() {
   if (!persistEnabled() || !capture) return;
+  if (!backupsOpen) {
+    queuedWhileClosed = true;
+    return;
+  }
   const snapshot = capture();
   pending = pending
     .then(() => saveShopBackup(snapshot))

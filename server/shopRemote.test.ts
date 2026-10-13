@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mergeSnapshots } from "./shopHydrate";
 import { decryptSnapshot, encryptSnapshot, type ShopSnapshot } from "./shopRemote";
 import { DUMMY_PRODUCT_SLUGS, importLocalProducts, readLocalProducts, resetCatalogForTests } from "./localCatalog";
 
@@ -36,5 +37,40 @@ describe("shop backup", () => {
     ], false);
     expect(DUMMY_PRODUCT_SLUGS.has("national-cep-radyosu")).toBe(true);
     expect(readLocalProducts(true).map((product) => product.slug)).toEqual(["cam-vazo"]);
+  });
+
+  it("keeps remote products and new local reviews when merging", () => {
+    const remote: ShopSnapshot = {
+      ...snapshot,
+      products: [{ id: 12, slug: "cam-vazo", name: "Cam Vazo" }],
+      reviews: [{ id: 1, body: "İlk yorum" }],
+      nextReviewId: 2,
+    };
+    const local: ShopSnapshot = {
+      ...snapshot,
+      products: [],
+      reviews: [{ id: 2, body: "Arkadaş yorumu" }],
+      nextReviewId: 3,
+    };
+    const merged = mergeSnapshots(remote, local);
+    expect(merged.products).toEqual([{ id: 12, slug: "cam-vazo", name: "Cam Vazo" }]);
+    expect(merged.reviews.map((review) => (review as { body: string }).body)).toEqual(["İlk yorum", "Arkadaş yorumu"]);
+    expect(merged.nextReviewId).toBe(3);
+  });
+
+  it("does not replace a catalog with an empty snapshot", () => {
+    const empty: ShopSnapshot = {
+      version: 1,
+      savedAt: "2026-10-13T12:00:00.000Z",
+      products: [],
+      reviews: [],
+      orders: [],
+      nextReviewId: 1,
+      nextOrderId: 1,
+      nextItemId: 1,
+      tokens: {},
+    };
+    expect(mergeSnapshots(snapshot, empty).products).toEqual(snapshot.products);
+    expect(mergeSnapshots(snapshot, empty).reviews).toEqual(snapshot.reviews);
   });
 });

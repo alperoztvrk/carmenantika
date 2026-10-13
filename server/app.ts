@@ -52,13 +52,9 @@ export async function createApp() {
     }),
   );
 
-  const hydrating = hydrateShop().catch((error) => {
+  await hydrateShop().catch((error) => {
     console.error("[shop] yedek yüklenemedi", error instanceof Error ? error.message : error);
   });
-  await Promise.race([
-    hydrating,
-    new Promise<void>((resolve) => setTimeout(resolve, 2500)),
-  ]);
   console.log(`[iyzico] ${iyzicoStatusLine()}`);
   return app;
 }

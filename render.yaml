@@ -1,13 +1,12 @@
 services:
   - type: web
     name: carmen-antika
-    runtime: docker
+    runtime: node
     plan: free
     region: frankfurt
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
     healthCheckPath: /healthz
-    domains:
-      - carmenantika.com
-      - www.carmenantika.com
     envVars:
       - key: NODE_ENV
         value: production

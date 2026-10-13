@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { dataFile } from "./dataFile";
 import { enqueueShopBackup } from "./shopRemote";
 
 export type ShopReview = {
@@ -11,7 +12,7 @@ export type ShopReview = {
   createdAt: Date;
 };
 
-const persistPath = path.resolve(".data/carmen-guest-reviews.json");
+const persistPath = dataFile("carmen-guest-reviews.json");
 const persistEnabled = process.env.NODE_ENV !== "test";
 const memory: ShopReview[] = [];
 let nextId = 1;

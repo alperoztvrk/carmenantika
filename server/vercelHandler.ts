@@ -1,13 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Express } from "express";
-import { createApp } from "../server/app";
+import { createApp } from "./app";
 
 export const config = {
   maxDuration: 60,
   api: { bodyParser: false },
 };
 
-const appPromise: Promise<Express> = createApp({ serveFiles: false });
+const appPromise = createApp({ serveFiles: false });
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   const app = await appPromise;

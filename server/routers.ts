@@ -514,7 +514,7 @@ export const appRouter = router({
       .input(z.object({
         firstName: z.string().trim().max(40),
         lastName: z.string().trim().max(40),
-        rating: z.number().int().min(1).max(5),
+        rating: z.coerce.number().int().min(1).max(5),
         body: z.string().trim().max(400),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -527,8 +527,15 @@ export const appRouter = router({
         if (firstName.length < 2 || lastName.length < 2) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Ad ve soyadı eksiksiz yaz." });
         }
+        if (body.length < 1) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Yorumunu bir cümleyle yaz." });
+        }
         const review = createReview({ firstName, lastName, rating: input.rating, body });
-        await flushShopBackup();
+        try {
+          await flushShopBackup();
+        } catch (error) {
+          console.error("[review] yedek yazılamadı", error instanceof Error ? error.message : error);
+        }
         return review;
       }),
     adminList: adminProcedure.query(() => listReviews()),

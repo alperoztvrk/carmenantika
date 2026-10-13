@@ -92,7 +92,12 @@ export function HomeReviewForm() {
         document.getElementById("canli-yorumlar")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 80);
     },
-    onError: (error) => setNote(error.message),
+    onError: (error) => {
+      const message = error.message;
+      setNote(/pattern|Invalid string|expected/i.test(message)
+        ? "Yorum gönderilemedi. Ad, soyad ve yorumu kontrol edip tekrar dene."
+        : message);
+    },
   });
   const [form, setForm] = useState({ firstName: "", lastName: "", rating: 5, body: "" });
   const [note, setNote] = useState("");
@@ -100,13 +105,21 @@ export function HomeReviewForm() {
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setNote("");
+    if (form.firstName.trim().length < 2 || form.lastName.trim().length < 2) {
+      setNote("Ad ve soyadı eksiksiz yaz.");
+      return;
+    }
+    if (form.body.trim().length < 1) {
+      setNote("Yorumunu bir cümleyle yaz.");
+      return;
+    }
     create.mutate(form);
   }
 
   return (
     <section className="home-reviews" aria-labelledby="reviews-title">
       <div className="container-carmen">
-        <form className="review-form" onSubmit={submit}>
+        <form className="review-form" onSubmit={submit} noValidate>
           <div>
             <span className="eyebrow">Carmen Antika / Yorumlar</span>
             <h2 id="reviews-title">Bir cümle <em>bırak.</em></h2>
@@ -114,11 +127,11 @@ export function HomeReviewForm() {
           <div className="review-form-grid">
             <label>
               Ad
-              <input value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} autoComplete="given-name" maxLength={40} required />
+              <input type="text" inputMode="text" value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} autoComplete="given-name" maxLength={40} required />
             </label>
             <label>
               Soyad
-              <input value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} autoComplete="family-name" maxLength={40} required />
+              <input type="text" inputMode="text" value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} autoComplete="family-name" maxLength={40} required />
             </label>
           </div>
           <fieldset className="review-rate">

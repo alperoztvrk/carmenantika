@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { InsertProduct, Product } from "../drizzle/schema";
+import { dataFile } from "./dataFile";
 import { enqueueShopBackup } from "./shopRemote";
 
 export const DUMMY_PRODUCT_SLUGS = new Set([
@@ -15,7 +16,7 @@ export const DUMMY_PRODUCT_SLUGS = new Set([
 ]);
 
 const memoryProducts: Product[] = [];
-const persistPath = path.resolve(".data/carmen-catalog.json");
+const persistPath = dataFile("carmen-catalog.json");
 const persistEnabled = process.env.NODE_ENV !== "test";
 let catalogLoaded = false;
 

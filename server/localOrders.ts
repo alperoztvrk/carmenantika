@@ -2,10 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import type { InsertOrder, InsertOrderItem, Order, OrderItem } from "../drizzle/schema";
 import { patchLocalProduct } from "./localCatalog";
+import { dataFile } from "./dataFile";
 import { enqueueShopBackup } from "./shopRemote";
 
 const HOLD_MS = 30 * 60 * 1000;
-const persistPath = path.resolve(".data/carmen-orders.json");
+const persistPath = dataFile("carmen-orders.json");
 const persistEnabled = process.env.NODE_ENV !== "test";
 
 export type StoredOrder = Order & { items: OrderItem[] };

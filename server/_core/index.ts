@@ -79,8 +79,6 @@ async function startServer() {
     serveStatic(app);
   }
 
-  await hydrateShop();
-
   const preferredPort = parseInt(process.env.PORT || "3000", 10);
   const port = process.env.NODE_ENV === "production" ? preferredPort : await findAvailablePort(preferredPort);
 
@@ -88,10 +86,14 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${port}/`);
-    console.log(`[iyzico] ${iyzicoStatusLine()}`);
+  await new Promise<void>((resolve) => {
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${port}/`);
+      console.log(`[iyzico] ${iyzicoStatusLine()}`);
+      resolve();
+    });
   });
+  await hydrateShop();
 }
 
 startServer().catch(console.error);

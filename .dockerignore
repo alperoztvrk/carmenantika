@@ -1,0 +1,10 @@
+node_modules
+.git
+.data
+dist
+.manus-logs
+coverage
+*.log
+.env
+.env.*
+!.env.example

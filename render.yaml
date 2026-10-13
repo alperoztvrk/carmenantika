@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: carmen-antika
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /healthz
+    domains:
+      - carmenantika.com
+      - www.carmenantika.com
+    disk:
+      name: carmen-data
+      mountPath: /app/.data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SITE_URL
+        value: https://carmenantika.com
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LOCAL_ADMIN_PASSWORD
+        sync: false
+      - key: IYZICO_API_KEY
+        sync: false
+      - key: IYZICO_SECRET_KEY
+        sync: false

@@ -21,7 +21,16 @@ describe("liveConfigProblems", () => {
     expect(problems.some((item) => /LOCAL_ADMIN_PASSWORD/.test(item))).toBe(true);
     expect(problems.some((item) => /JWT_SECRET/.test(item))).toBe(true);
     expect(problems.some((item) => /SITE_URL/.test(item))).toBe(true);
-    expect(problems.some((item) => /IYZICO/.test(item))).toBe(true);
+    expect(problems.some((item) => /IYZICO/.test(item))).toBe(false);
+  });
+
+  it("lets the shop go live before iyzico keys exist", () => {
+    process.env.LOCAL_ADMIN_PASSWORD = "guclu-sifre-123";
+    process.env.JWT_SECRET = "abcdefghijklmnopqrstuvwxyz012345";
+    process.env.SITE_URL = "https://carmenantika.com";
+    delete process.env.IYZICO_API_KEY;
+    delete process.env.IYZICO_SECRET_KEY;
+    expect(liveConfigProblems()).toEqual([]);
   });
 
   it("accepts live iyzico keys and https", () => {

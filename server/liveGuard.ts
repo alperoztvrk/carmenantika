@@ -14,9 +14,7 @@ export function liveConfigProblems() {
   if (!/^https:\/\/[^/]+/i.test(site)) {
     problems.push("SITE_URL https://senin-domainin.com olmalı.");
   }
-  if (!iyzicoConfigured()) {
-    problems.push("IYZICO_API_KEY ve IYZICO_SECRET_KEY boş.");
-  } else if (iyzicoIsSandbox()) {
+  if (iyzicoConfigured() && iyzicoIsSandbox()) {
     problems.push("iyzico anahtarı sandbox-. Canlı için merchant.iyzipay.com anahtarlarını yaz.");
   }
   return problems;
@@ -26,7 +24,8 @@ export function assertLiveConfig() {
   if (process.env.NODE_ENV !== "production") return;
   const problems = liveConfigProblems();
   if (problems.length === 0) {
-    console.log("[canlı] iyzico canlı API, yönetim şifresi ve SITE_URL hazır.");
+    if (iyzicoConfigured()) console.log("[canlı] iyzico canlı API, yönetim şifresi ve SITE_URL hazır.");
+    else console.log("[canlı] Site açık. iyzico anahtarı onaydan sonra eklenecek.");
     return;
   }
   console.error("[canlı] Site canlıya çıkamaz:");

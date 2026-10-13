@@ -22,6 +22,7 @@ let capture: (() => ShopSnapshot) | null = null;
 let pending: Promise<void> = Promise.resolve();
 let backupsOpen = false;
 let queuedWhileClosed = false;
+let lastBackup: { savedAt: string; products: number; reviews: number; orders: number } | null = null;
 
 export function bindShopBackup(fn: () => ShopSnapshot) {
   capture = fn;
@@ -80,21 +81,38 @@ function cookieHeader(setCookies: string[]) {
 
 function csrfFrom(setCookies: string[]) {
   for (const cookie of setCookies) {
-    const match = cookie.match(/^csrftoken=([^;]+)/i);
+    const match = cookie.match(/(?:^|;)\s*csrftoken=([^;]+)/i);
     if (match?.[1]) return match[1];
   }
   return "";
 }
 
+export function csrfFromHtml(html: string) {
+  return (
+    html.match(/name=["']csrfmiddlewaretoken["'][^>]*value=["']([^"']+)/i)?.[1]
+    ?? html.match(/value=["']([^"']+)["'][^>]*name=["']csrfmiddlewaretoken["']/i)?.[1]
+    ?? ""
+  );
+}
+
+export function cookiesFromResponse(response: Response) {
+  const listed = response.headers.getSetCookie?.() ?? [];
+  if (listed.length) return listed;
+  const raw = response.headers.get("set-cookie");
+  return raw ? [raw] : [];
+}
+
 async function rentrySession() {
   const response = await fetch(RENTRY, {
-    headers: { "user-agent": USER_AGENT },
+    headers: { "user-agent": USER_AGENT, accept: "text/html" },
     signal: AbortSignal.timeout(8000),
   });
-  const setCookies = response.headers.getSetCookie?.() ?? [];
-  const csrf = csrfFrom(setCookies);
+  const html = await response.text();
+  const setCookies = cookiesFromResponse(response);
+  const csrf = csrfFrom(setCookies) || csrfFromHtml(html);
   if (!csrf) throw new Error("rentry csrf yok");
-  return { cookie: cookieHeader(setCookies), csrf };
+  const cookie = cookieHeader(setCookies) || `csrftoken=${csrf}`;
+  return { cookie, csrf };
 }
 
 async function rentryPost(path: string, fields: Record<string, string>) {
@@ -256,6 +274,12 @@ export async function saveShopBackup(snapshot: ShopSnapshot) {
     errors.push(message);
   }
   if (errors.length === 2) throw new Error(errors.join(" · "));
+  lastBackup = {
+    savedAt: snapshot.savedAt,
+    products: snapshot.products.length,
+    reviews: snapshot.reviews.length,
+    orders: snapshot.orders.length,
+  };
 }
 
 export function closeShopBackups() {
@@ -288,6 +312,29 @@ export function flushShopBackup() {
   return pending;
 }
 
+export async function persistShopNow() {
+  if (!persistEnabled()) return;
+  if (!backupKeyReady()) {
+    throw new Error("Yedek anahtarı yok. Vercel’de JWT_SECRET en az 24 karakter olmalı.");
+  }
+  if (!capture) {
+    throw new Error("Yedek henüz hazır değil. Bir dakika sonra tekrar dene.");
+  }
+  backupsOpen = true;
+  const snapshot = capture();
+  await saveShopBackup(snapshot);
+}
+
 export function backupKeyReady() {
   return backupSecret().length >= 24;
+}
+
+export function backupStatus() {
+  return {
+    ready: backupKeyReady(),
+    savedAt: lastBackup?.savedAt ?? null,
+    products: lastBackup?.products ?? 0,
+    reviews: lastBackup?.reviews ?? 0,
+    orders: lastBackup?.orders ?? 0,
+  };
 }

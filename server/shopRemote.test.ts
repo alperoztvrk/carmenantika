@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decryptSnapshot, encryptSnapshot, mergeSnapshots, type ShopSnapshot } from "./shopRemote";
+import { csrfFromHtml, decryptSnapshot, encryptSnapshot, mergeSnapshots, type ShopSnapshot } from "./shopRemote";
 import { DUMMY_PRODUCT_SLUGS, importLocalProducts, readLocalProducts, resetCatalogForTests } from "./localCatalog";
 
 const secret = "shop-backup-secret-key-24chars";
@@ -55,6 +55,10 @@ describe("shop backup", () => {
     expect(merged.products).toEqual([{ id: 12, slug: "cam-vazo", name: "Cam Vazo" }]);
     expect(merged.reviews.map((review) => (review as { body: string }).body)).toEqual(["İlk yorum", "Arkadaş yorumu"]);
     expect(merged.nextReviewId).toBe(3);
+  });
+
+  it("reads csrf from rentry html when set-cookie is missing", () => {
+    expect(csrfFromHtml('<input type="hidden" name="csrfmiddlewaretoken" value="abc123">')).toBe("abc123");
   });
 
   it("does not replace a catalog with an empty snapshot", () => {

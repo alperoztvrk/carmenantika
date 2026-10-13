@@ -30,7 +30,7 @@ import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
 import { phonesMatch, readGuestOrderNumbers, rememberGuestOrder } from "./guestOrders";
 import { createReview, deleteReview, listReviews } from "./localReviews";
-import { flushShopBackup } from "./shopRemote";
+import { backupStatus, persistShopNow } from "./shopRemote";
 import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -270,6 +270,7 @@ export const appRouter = router({
       return product ? withGallery(product) : product;
     }),
     adminList: adminProcedure.query(async () => (await listProducts(true)).map(withGallery)),
+    adminBackup: adminProcedure.query(() => backupStatus()),
     adminUploadImage: adminProcedure
       .input(z.object({ fileName: z.string().min(1).max(180), contentType: z.string().min(1), dataBase64: z.string().min(20) }))
       .mutation(async ({ input }) => {
@@ -532,9 +533,10 @@ export const appRouter = router({
         }
         const review = createReview({ firstName, lastName, rating: input.rating, body });
         try {
-          await flushShopBackup();
+          await persistShopNow();
         } catch (error) {
           console.error("[review] yedek yazılamadı", error instanceof Error ? error.message : error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Yorum alındı ama kalıcı kayıt yapılamadı. Lütfen bir kez daha dene." });
         }
         return review;
       }),
@@ -543,7 +545,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input }) => {
         if (!deleteReview(input.id)) throw new TRPCError({ code: "NOT_FOUND", message: "Yorum bulunamadı." });
-        await flushShopBackup();
+        await persistShopNow();
         return { id: input.id };
       }),
   }),

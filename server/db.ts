@@ -14,7 +14,7 @@ import {
 import { ENV } from "./_core/env";
 import { findLocalProduct, findLocalProductById, patchLocalProduct, readLocalProducts, removeLocalProduct, saveLocalProduct } from "./localCatalog";
 import { deleteLocalOrder, findLocalOrder, findLocalOrderByNumber, findLocalOrderBySession, findLatestPendingLocalOrder, markLocalOrderPaid, patchLocalOrder, readLocalOrders, releaseStaleLocalOrders, saveLocalOrder } from "./localOrders";
-import { flushShopBackup } from "./shopRemote";
+import { persistShopNow } from "./shopRemote";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -103,7 +103,7 @@ export async function createProduct(input: InsertProduct) {
   const db = await getDb();
   if (!db) {
     const created = saveLocalProduct(input);
-    await flushShopBackup();
+    await persistShopNow();
     return created;
   }
   const result = await db.insert(products).values(input);
@@ -115,7 +115,7 @@ export async function updateProduct(id: number, input: Partial<InsertProduct>) {
   const db = await getDb();
   if (!db) {
     const updated = patchLocalProduct(id, input);
-    await flushShopBackup();
+    await persistShopNow();
     return updated;
   }
   await db.update(products).set({ ...input, updatedAt: new Date() }).where(eq(products.id, id));
@@ -130,7 +130,7 @@ export async function deleteProduct(id: number) {
   const db = await getDb();
   if (!db) {
     const removed = removeLocalProduct(id);
-    await flushShopBackup();
+    await persistShopNow();
     return removed;
   }
   await db.delete(products).where(eq(products.id, id));
@@ -142,7 +142,7 @@ export async function updateProductsAvailability(ids: number[], isAvailable: num
   const db = await getDb();
   if (!db) {
     ids.forEach((id) => patchLocalProduct(id, { isAvailable }));
-    await flushShopBackup();
+    await persistShopNow();
     return;
   }
   await db.update(products).set({ isAvailable, updatedAt: new Date() }).where(inArray(products.id, ids));
@@ -159,7 +159,7 @@ export async function createOrder(input: InsertOrder, items: InsertOrderItem[]) 
   const db = await getDb();
   if (!db) {
     const created = saveLocalOrder(input, items);
-    await flushShopBackup();
+    await persistShopNow();
     return created;
   }
   const result = await db.insert(orders).values(input);
@@ -174,7 +174,7 @@ export async function updateOrder(id: number, input: Partial<InsertOrder>) {
   const db = await getDb();
   if (!db) {
     const updated = patchLocalOrder(id, input);
-    await flushShopBackup();
+    await persistShopNow();
     return updated;
   }
   await db.update(orders).set({ ...input, updatedAt: new Date() }).where(eq(orders.id, id));
@@ -221,7 +221,7 @@ export async function markOrderPaid(orderId: number, paymentIntentId: string | n
   const db = await getDb();
   if (!db) {
     const paid = markLocalOrderPaid(orderId, paymentIntentId);
-    await flushShopBackup();
+    await persistShopNow();
     return paid;
   }
   const order = await getOrderById(orderId);
@@ -255,7 +255,7 @@ export async function deleteOrder(id: number) {
   const db = await getDb();
   if (!db) {
     if (!deleteLocalOrder(id)) return undefined;
-    await flushShopBackup();
+    await persistShopNow();
   } else {
     await db.delete(orderItems).where(eq(orderItems.orderId, id));
     await db.delete(orders).where(eq(orders.id, id));

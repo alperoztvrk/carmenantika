@@ -125,6 +125,7 @@ export default function Admin() {
   const products = trpc.product.adminList.useQuery(undefined, { enabled: isAdmin });
   const orders = trpc.order.adminList.useQuery(undefined, { enabled: isAdmin, refetchInterval: 5000 });
   const reviews = trpc.review.adminList.useQuery(undefined, { enabled: isAdmin, refetchInterval: 5000 });
+  const backup = trpc.product.adminBackup.useQuery(undefined, { enabled: isAdmin, refetchInterval: 8000 });
   const refreshCatalog = () => {
     utils.product.adminList.invalidate();
     utils.product.list.invalidate();
@@ -264,7 +265,11 @@ export default function Admin() {
               <div>
                 <span className="eyebrow">Carmen Antika / Yönetim</span>
                 <h1>Parçalarını <em>yönet.</em></h1>
-                <p>Canlı koleksiyona ürün ekle, görsellerini yükle ve satılan parçaları sil.</p>
+                <p>Canlı koleksiyona ürün ekle, görsellerini yükle ve satılan parçaları sil. {backup.data?.savedAt
+                  ? `Yedek kayıtlı: ${backup.data.products} ürün, ${backup.data.reviews} yorum.`
+                  : backup.data?.ready
+                    ? "İlk ürün veya yorumdan sonra yedek alınır; deploy’da silinmez."
+                    : "Yedek anahtarı eksik. Vercel’de JWT_SECRET durmalı."}</p>
               </div>
               <div className="admin-heading-tools">
                 <div className="admin-stat">

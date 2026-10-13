@@ -28,6 +28,7 @@ function AdminLogin() {
           <h2>Şifre ile devam et</h2>
           <p>Bu sayfa müşterilere kapalıdır. Şifreyi girdikten sonra koleksiyonu ve siparişleri yönetirsin.</p>
           {status.isLoading && <p className="admin-muted">Yönetim alanı açılıyor...</p>}
+          {status.isError && <p className="admin-message is-error">Yönetim açılamadı. Sayfayı yenile ya da bir dakika sonra dene.</p>}
           {status.data && !status.data.enabled && (
             <p className="admin-message is-error">Yönetim girişi bu sunucuda henüz açık değil. Canlı ortamda yönetim şifresini ekleyip sunucuyu yeniden başlat.</p>
           )}

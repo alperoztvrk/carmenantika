@@ -85,7 +85,7 @@ function csrfFrom(setCookies: string[]) {
 async function rentrySession() {
   const response = await fetch(RENTRY, {
     headers: { "user-agent": USER_AGENT },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(4000),
   });
   const setCookies = response.headers.getSetCookie?.() ?? [];
   const csrf = csrfFrom(setCookies);
@@ -105,7 +105,7 @@ async function rentryPost(path: string, fields: Record<string, string>) {
       "user-agent": USER_AGENT,
     },
     body,
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(5000),
   });
   const text = await response.text();
   try {
@@ -137,7 +137,7 @@ function extractRentryPayload(html: string) {
 async function readRemote(slug: string) {
   const response = await fetch(`${RENTRY}/${slug}`, {
     headers: { "user-agent": USER_AGENT, accept: "text/html" },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(4000),
   });
   if (!response.ok) return null;
   const html = await response.text();

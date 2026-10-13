@@ -12,7 +12,6 @@ import { assertLiveConfig } from "../liveGuard";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { ENV } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -43,28 +42,6 @@ function securityHeaders(_req: express.Request, res: express.Response, next: exp
   next();
 }
 
-function requestHost(req: express.Request) {
-  const forwarded = req.headers["x-forwarded-host"];
-  const raw = (typeof forwarded === "string" ? forwarded.split(",")[0] : req.headers.host) ?? "";
-  return String(raw).split(":")[0].trim().toLowerCase();
-}
-
-function canonicalHost(req: express.Request, res: express.Response, next: express.NextFunction) {
-  if (process.env.NODE_ENV !== "production") return next();
-  let want: URL;
-  try {
-    want = new URL(ENV.siteUrl);
-  } catch {
-    return next();
-  }
-  const host = requestHost(req);
-  if (!host || host === want.hostname) return next();
-  if (host === `www.${want.hostname}` || want.hostname === `www.${host}`) {
-    return res.redirect(301, `${want.origin}${req.originalUrl}`);
-  }
-  return next();
-}
-
 async function startServer() {
   try {
     assertLiveConfig();
@@ -76,7 +53,6 @@ async function startServer() {
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
   app.use(securityHeaders);
-  app.use(canonicalHost);
   app.get("/healthz", (_req, res) => {
     res.type("text").send("ok");
   });

@@ -2,16 +2,12 @@ services:
   - type: web
     name: carmen-antika
     runtime: docker
-    plan: starter
+    plan: free
     region: frankfurt
     healthCheckPath: /healthz
     domains:
       - carmenantika.com
       - www.carmenantika.com
-    disk:
-      name: carmen-data
-      mountPath: /app/.data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production

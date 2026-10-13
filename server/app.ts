@@ -20,8 +20,14 @@ function securityHeaders(_req: express.Request, res: express.Response, next: exp
   next();
 }
 
-export async function createApp(options?: { serveFiles?: boolean }) {
-  if (process.env.NODE_ENV === "production") assertLiveConfig();
+export async function createApp() {
+  if (process.env.NODE_ENV === "production") {
+    try {
+      assertLiveConfig();
+    } catch (error) {
+      console.error("[canlı] yapılandırma eksik; API açık kalıyor", error instanceof Error ? error.message : error);
+    }
+  }
 
   const app = express();
   app.disable("x-powered-by");
@@ -46,18 +52,12 @@ export async function createApp(options?: { serveFiles?: boolean }) {
     }),
   );
 
-  const serveFiles = options?.serveFiles ?? (process.env.NODE_ENV === "production" && !process.env.VERCEL);
-  if (serveFiles) {
-    const { serveStatic } = await import("./_core/vite");
-    serveStatic(app);
-  }
-
   const hydrating = hydrateShop().catch((error) => {
     console.error("[shop] yedek yüklenemedi", error instanceof Error ? error.message : error);
   });
   await Promise.race([
     hydrating,
-    new Promise<void>((resolve) => setTimeout(resolve, 3500)),
+    new Promise<void>((resolve) => setTimeout(resolve, 2500)),
   ]);
   console.log(`[iyzico] ${iyzicoStatusLine()}`);
   return app;

@@ -23,6 +23,7 @@ await esbuild.build({
   platform: "node",
   format: "esm",
   packages: "external",
+  external: ["vite", "vite.config", "../../vite.config"],
   logLevel: "info",
   plugins: [
     {

@@ -92,12 +92,7 @@ export function HomeReviewForm() {
         document.getElementById("canli-yorumlar")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 80);
     },
-    onError: (error) => {
-      const message = error.message;
-      setNote(/pattern|Invalid string|expected/i.test(message)
-        ? "Yorum gönderilemedi. Ad, soyad ve yorumu kontrol edip tekrar dene."
-        : message);
-    },
+    onError: (error) => setNote(error.message || "Yorum gönderilemedi. Biraz sonra tekrar dene."),
   });
   const [form, setForm] = useState({ firstName: "", lastName: "", rating: 5, body: "" });
   const [note, setNote] = useState("");

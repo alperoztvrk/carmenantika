@@ -26,9 +26,13 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   try {
     const dev = process.env.NODE_ENV === "development";
-    const app = await createApp({ serveFiles: !dev && !process.env.VERCEL });
+    const app = await createApp();
     const server = createServer(app);
     if (dev) await setupVite(app, server);
+    else if (!process.env.VERCEL) {
+      const { serveStatic } = await import("./vite");
+      serveStatic(app);
+    }
 
     const preferredPort = parseInt(process.env.PORT || "3000", 10);
     const port = process.env.NODE_ENV === "production" ? preferredPort : await findAvailablePort(preferredPort);

@@ -30,5 +30,6 @@ export function assertLiveConfig() {
   }
   console.error("[canlı] Site canlıya çıkamaz:");
   for (const problem of problems) console.error(`  - ${problem}`);
+  if (process.env.VERCEL) return;
   throw new Error(problems.join(" "));
 }

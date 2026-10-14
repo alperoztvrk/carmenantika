@@ -15,7 +15,7 @@ export default function Home() {
         <div className="container-carmen hero-grid">
           <HeroEnter className="hero-copy">
             <motion.div className="hero-brand" variants={heroItem}>
-              <img src="/brand/carmen-lockup.png?v=3" alt="Carmen Antika" width="987" height="987" />
+              <img src="/brand/carmen-lockup.png?v=4" alt="Carmen Antika" width="1100" height="1100" />
             </motion.div>
             <motion.h1 className="hero-title serif text-balance" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }}>
               <motion.span className="hero-line" variants={heroItem}>Geçmişten gelen,</motion.span>

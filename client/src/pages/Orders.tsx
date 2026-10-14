@@ -62,7 +62,7 @@ export default function Orders() {
                 <PackageCheck size={30} />
                 <h2>Bu cihazda henüz sipariş yok.</h2>
                 <p>Sipariş numaran ve telefonunla yukarıdan da bakabilirsin.</p>
-                <Link className="primary-cta" href="/koleksiyon">Koleksiyona git <ArrowRight size={15} /></Link>
+                <Link className="primary-cta" href="/#koleksiyon">Koleksiyona git <ArrowRight size={15} /></Link>
               </div>
             ) : (
               <div className="orders-list">

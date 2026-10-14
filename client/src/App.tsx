@@ -8,8 +8,8 @@ import InfoPage from "@/pages/InfoPage";
 import OrderSuccess from "@/pages/OrderSuccess";
 import Orders from "@/pages/Orders";
 import ProductDetail from "@/pages/ProductDetail";
-import Story from "@/pages/Story";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
+import { useEffect } from "react";
 import { StoreLayout } from "./components/StoreLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { CheckoutReturn } from "./components/CheckoutReturn";
@@ -18,6 +18,14 @@ import { Providers } from "./components/Providers";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
+function RedirectHome() {
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    navigate("/", { replace: true });
+  }, [navigate]);
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -25,7 +33,7 @@ function Router() {
       <Route path="/koleksiyon" component={Collection} />
       <Route path="/urunler" component={Collection} />
       <Route path="/urun/:slug" component={ProductDetail} />
-      <Route path="/hikayemiz" component={Story} />
+      <Route path="/hikayemiz" component={RedirectHome} />
       <Route path="/admin" component={Admin} />
       <Route path="/sepet" component={Cart} />
       <Route path="/siparis-basarili" component={OrderSuccess} />

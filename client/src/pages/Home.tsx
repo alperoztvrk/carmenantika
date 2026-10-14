@@ -1,13 +1,22 @@
 import { MotionConfig, motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { Link } from "wouter";
+import { useEffect } from "react";
+import { CollectionCatalog } from "@/components/CollectionCatalog";
 import { HomeReviewForm, ReviewTicker } from "@/components/HomeReviews";
 import { HeroEnter, heroItem } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
+import { scrollToCollection } from "@/lib/shop";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
 
 export default function Home() {
+  useEffect(() => {
+    if (window.location.hash === "#koleksiyon" || new URLSearchParams(window.location.search).has("q")) {
+      const timer = window.setTimeout(scrollToCollection, 80);
+      return () => window.clearTimeout(timer);
+    }
+  }, []);
+
   return (
     <StoreLayout>
       <MotionConfig reducedMotion="never">
@@ -22,8 +31,7 @@ export default function Home() {
               <motion.span className="hero-line" variants={heroItem}><em>bugün</em> için seçilmiş.</motion.span>
             </motion.h1>
             <motion.div className="cta-row" variants={heroItem}>
-              <Link className="primary-cta" href="/koleksiyon">Koleksiyonu keşfet <ArrowRight size={15} /></Link>
-              <Link className="outline-cta" href="/hikayemiz">Hikâyemiz</Link>
+              <a className="primary-cta" href="#koleksiyon">Koleksiyonu keşfet <ArrowRight size={15} /></a>
             </motion.div>
           </HeroEnter>
           <div className="hero-visual" data-parallax="0.05">
@@ -41,6 +49,7 @@ export default function Home() {
         </div>
         <ReviewTicker />
       </section>
+      <CollectionCatalog />
       <HomeReviewForm />
       </MotionConfig>
     </StoreLayout>

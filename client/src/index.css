@@ -289,6 +289,10 @@ html.scroll-down, html { --reveal-y: 44px; }
 .catalog-mark span { font: 600 55px/.8 "Cormorant Garamond", Georgia, serif; }
 .catalog-mark small { border-left: 1px solid var(--border); padding-left: 14px; font-size: 9px; line-height: 1.5; letter-spacing: .14em; text-transform: uppercase; }
 .catalog-shell { padding: 55px 0 125px; background: var(--paper); }
+.home-catalog { scroll-margin-top: 96px; }
+.home-catalog-head { margin-bottom: 8px; }
+.home-catalog-head h2 { margin: 10px 0 0; font-size: clamp(42px, 6vw, 72px); line-height: .86; letter-spacing: -.06em; font-weight: 500; }
+.home-catalog-head h2 em { color: var(--terracotta); font-style: italic; }
 .catalog-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 25px; border-top: 1px solid var(--border); padding: 17px 0 30px; }
 .catalog-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted-foreground); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 .catalog-filters button { border: 0; border-bottom: 1px solid transparent; background: transparent; padding: 5px 2px; color: var(--muted-foreground); cursor: pointer; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; transition: color .35s ease, border-color .35s ease; }

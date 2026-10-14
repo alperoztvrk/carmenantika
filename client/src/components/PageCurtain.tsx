@@ -18,9 +18,18 @@ export function PageCurtain() {
       const nextUrl = new URL(href, window.location.origin);
       const next = `${nextUrl.pathname}${nextUrl.search}`;
       const current = `${window.location.pathname}${window.location.search}`;
-      if (next === current) return;
+      const hashId = nextUrl.hash.replace(/^#/, "");
+      const goToHash = () => {
+        if (!hashId) return;
+        document.getElementById(hashId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      if (next === current) {
+        goToHash();
+        return;
+      }
       navigateRef.current(next);
-      window.scrollTo(0, 0);
+      if (hashId) requestAnimationFrame(() => requestAnimationFrame(goToHash));
+      else window.scrollTo(0, 0);
     };
 
     openWithCurtain = start;

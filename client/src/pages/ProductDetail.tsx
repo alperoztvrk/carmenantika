@@ -28,7 +28,7 @@ export default function ProductDetail({ params }: { params: { slug?: string } })
   }, [product?.id]);
 
   if (isLoading) return <StoreLayout><div className="detail-state">Ürün açılıyor...</div></StoreLayout>;
-  if (error || !product) return <StoreLayout><div className="detail-state"><h1>Bu parça yerini bulmuş olabilir.</h1><p>Aradığın ürün artık koleksiyonda değil.</p><Link href="/koleksiyon" className="text-link">Koleksiyona dön <ArrowRight size={15} /></Link></div></StoreLayout>;
+  if (error || !product) return <StoreLayout><div className="detail-state"><h1>Bu parça yerini bulmuş olabilir.</h1><p>Aradığın ürün artık koleksiyonda değil.</p><Link href="/#koleksiyon" className="text-link">Koleksiyona dön <ArrowRight size={15} /></Link></div></StoreLayout>;
 
   const images = product.imageUrls?.length ? product.imageUrls : parseGallery(product.gallery, product.imageUrl);
   const currentImage = images[Math.min(activeImage, Math.max(images.length - 1, 0))] || product.imageUrl;
@@ -49,7 +49,7 @@ export default function ProductDetail({ params }: { params: { slug?: string } })
     <StoreLayout>
       <PageRise>
         <div className="detail-breadcrumb container-carmen">
-          <Link href="/koleksiyon"><ArrowLeft size={15} /> Koleksiyona dön</Link>
+          <Link href="/#koleksiyon"><ArrowLeft size={15} /> Koleksiyona dön</Link>
           <span> / {product.category}</span>
         </div>
         <section className="detail-layout container-carmen">

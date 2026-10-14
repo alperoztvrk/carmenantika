@@ -88,7 +88,7 @@ export default function OrderSuccess() {
               </div>
             )}
             <div className="success-actions">
-              <Link className="primary-cta" href="/koleksiyon">Koleksiyona dön <ArrowRight size={15} /></Link>
+              <Link className="primary-cta" href="/#koleksiyon">Koleksiyona dön <ArrowRight size={15} /></Link>
             </div>
           </div>
         </section>

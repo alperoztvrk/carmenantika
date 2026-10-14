@@ -1,6 +1,6 @@
 import { MotionConfig, motion } from "framer-motion";
 import { Link } from "wouter";
-import { SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
+import { COLLECTION_HREF, SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
 
@@ -22,8 +22,7 @@ export function StoreFooter() {
           </div>
           <div className="footer-col">
             <h3>Keşfet</h3>
-            <Link href="/koleksiyon">Koleksiyon</Link>
-            <Link href="/hikayemiz">Hikâyemiz</Link>
+            <Link href={COLLECTION_HREF}>Koleksiyon</Link>
             <Link href="/siparislerim">Siparişlerim</Link>
           </div>
           <div className="footer-col">

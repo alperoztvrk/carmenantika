@@ -6,7 +6,7 @@ import { StoreImage } from "@/components/StoreImage";
 import { money } from "@/components/ProductCard";
 import { goWithCurtain } from "@/components/PageCurtain";
 import { holdLabel, useCart } from "@/contexts/CartContext";
-import { SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
+import { COLLECTION_HREF, SHOP_PHONE, SHOP_PHONE_TEL } from "@/lib/shop";
 
 const ease = [0.22, 0.8, 0.24, 1] as const;
 
@@ -70,7 +70,7 @@ export function StoreHeader() {
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
     setSearchOpen(false);
-    go(`/koleksiyon?q=${encodeURIComponent(searchTerm)}`);
+    go(`/?q=${encodeURIComponent(searchTerm)}#koleksiyon`);
   };
 
   return (
@@ -84,13 +84,9 @@ export function StoreHeader() {
       <header className="site-header">
         <div className="container-carmen header-main">
           <nav className="nav-links" aria-label="Ana menü">
-            <Link href="/koleksiyon" className={location.startsWith("/koleksiyon") || location.startsWith("/urun") ? "is-current" : ""}>
+            <Link href={COLLECTION_HREF} className={location === "/" || location.startsWith("/urun") ? "is-current" : ""}>
               Koleksiyon
-              {(location.startsWith("/koleksiyon") || location.startsWith("/urun")) && <motion.span layoutId="nav-underline" className="nav-underline" transition={{ type: "spring", stiffness: 380, damping: 34 }} />}
-            </Link>
-            <Link href="/hikayemiz" className={location.startsWith("/hikayemiz") ? "is-current" : ""}>
-              Hikâyemiz
-              {location.startsWith("/hikayemiz") && <motion.span layoutId="nav-underline" className="nav-underline" transition={{ type: "spring", stiffness: 380, damping: 34 }} />}
+              {(location === "/" || location.startsWith("/urun")) && <motion.span layoutId="nav-underline" className="nav-underline" transition={{ type: "spring", stiffness: 380, damping: 34 }} />}
             </Link>
           </nav>
           <Link href="/" className="brand-lockup" aria-label="Carmen Antika ana sayfa">
@@ -121,8 +117,7 @@ export function StoreHeader() {
               transition={{ duration: 0.45, ease }}
             >
               {[
-                ["/koleksiyon", "Koleksiyon"],
-                ["/hikayemiz", "Hikâyemiz"],
+                [COLLECTION_HREF, "Koleksiyon"],
                 ["/siparislerim", "Siparişlerim"],
                 ["/iletisim", "İletişim"],
               ].map(([href, label], index) => (
@@ -177,7 +172,7 @@ export function StoreHeader() {
                 <div className="quick-cart-empty">
                   <ShoppingBag size={28} />
                   <p>Henüz bir parça seçmedin.</p>
-                  <button type="button" onClick={() => go("/koleksiyon")}>Koleksiyona dön <ArrowRight size={15} /></button>
+                  <button type="button" onClick={() => go(COLLECTION_HREF)}>Koleksiyona dön <ArrowRight size={15} /></button>
                 </div>
               ) : (
                 <>

@@ -61,9 +61,8 @@ a { color: inherit; text-decoration: none; }
 
 .site-header { position: relative; z-index: 20; background: #f3ebdd; border-bottom: 1px solid rgba(111, 83, 56, .17); }
 .header-main { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 86px; gap: 24px; }
-.brand-lockup { justify-self: center; text-align: center; line-height: .82; }
-.brand-name { font-family: "Cormorant Garamond", Georgia, serif; font-size: clamp(32px, 4vw, 45px); letter-spacing: -.06em; font-weight: 600; }
-.brand-sub { display: block; margin-top: 8px; font-size: 9px; letter-spacing: .32em; text-transform: uppercase; color: var(--terracotta); font-weight: 700; }
+.brand-lockup { justify-self: center; display: inline-flex; align-items: center; line-height: 0; }
+.brand-logo { display: block; width: 64px; height: 64px; object-fit: cover; border-radius: 50%; background: #050505; }
 .nav-links { display: flex; align-items: center; gap: 24px; }
 .nav-links a, .header-action { position: relative; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: #5e4c3e; }
 .nav-links a::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -7px; height: 1px; background: var(--terracotta); transition: right .42s var(--ease-soft); }
@@ -79,11 +78,10 @@ a { color: inherit; text-decoration: none; }
 .hero { padding: 58px 0 76px; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(400px, 1.1fr); gap: clamp(36px, 7vw, 110px); align-items: center; }
 .hero-copy { padding: 28px 0 14px 3vw; }
-.hero-kicker { display: flex; align-items: center; gap: 12px; color: var(--terracotta); margin-bottom: 24px; }
-.hero-kicker::before { content: ""; width: 44px; height: 1px; background: var(--terracotta); }
 .hero-title { margin: 0; max-width: 610px; font-size: clamp(60px, 7.6vw, 116px); line-height: .82; font-weight: 500; letter-spacing: -.07em; }
 .hero-title em { color: var(--terracotta); font-style: italic; }
-.hero-intro { max-width: 365px; margin: 30px 0 28px; color: var(--muted-foreground); font-size: 14px; line-height: 1.75; }
+.hero-brand { margin: 28px 0 26px; width: min(268px, 72%); }
+.hero-brand img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 50%; background: #050505; }
 .cta-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .primary-cta, .outline-cta { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 0 21px; border: 1px solid transparent; font-size: 10px; letter-spacing: .13em; text-transform: uppercase; font-weight: 700; cursor: pointer; transition: transform .38s var(--ease-soft), background .42s ease, color .42s ease; }
 .primary-cta { background: var(--terracotta); color: var(--paper); }
@@ -210,9 +208,8 @@ html.scroll-down, html { --reveal-y: 44px; }
 @media (max-width: 900px) {
   .container-carmen { width: min(100% - 34px, 700px); }
   .header-main { grid-template-columns: auto 1fr auto; min-height: 74px; }
-  .brand-lockup { justify-self: start; text-align: left; }
-  .brand-name { font-size: 34px; }
-  .brand-sub { margin-top: 5px; font-size: 7px; }
+  .brand-lockup { justify-self: start; }
+  .brand-logo { width: 54px; height: 54px; }
   .nav-links { display: none; }
   .mobile-toggle { display: inline-grid; }
   .hero { padding: 42px 0 56px; }
@@ -727,8 +724,7 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
 @media (max-width: 900px) {
   .header-main { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; min-height: 68px; }
   .brand-lockup { min-width: 0; justify-self: start; }
-  .brand-name { font-size: clamp(28px, 7vw, 36px); }
-  .brand-sub { display: none; }
+  .brand-logo { width: 48px; height: 48px; }
   .header-actions { gap: 2px; min-width: 0; }
   .icon-button, .cart-button, .mobile-toggle { flex-shrink: 0; }
   .cart-label { display: none; }
@@ -748,7 +744,7 @@ html.scroll-up .site-header { transform: translateY(0); box-shadow: 0 13px 25px 
   .hero { padding: 28px 0 40px; }
   .hero-only { padding-top: 12px; }
   .hero-title { font-size: clamp(44px, 12.5vw, 62px); }
-  .hero-intro { margin: 18px 0 22px; }
+  .hero-brand { margin: 22px 0 20px; width: min(220px, 68%); }
   .hero-visual { min-height: 380px; }
   .hero-stamp { width: 76px; height: 76px; top: 16px; right: 12px; }
   .hero-caption { left: 12px; right: auto; bottom: 12px; width: min(190px, 58%); }

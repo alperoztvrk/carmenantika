@@ -14,21 +14,16 @@ export default function Home() {
       <section className="hero hero-only">
         <div className="container-carmen hero-grid">
           <HeroEnter className="hero-copy">
-            <motion.div className="hero-kicker eyebrow" variants={heroItem}>Yeni bir hikâyeye yer aç</motion.div>
             <motion.h1 className="hero-title serif text-balance" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }}>
               <motion.span className="hero-line" variants={heroItem}>Geçmişten gelen,</motion.span>
               <motion.span className="hero-line" variants={heroItem}><em>bugün</em> için seçilmiş.</motion.span>
             </motion.h1>
-            <motion.p className="hero-intro" variants={heroItem}>
-              Carmen Antika, ikinci el radyo, oyuncak, kamera ve seçilmiş objeleri Antalya’dan gönderir. Her parça tek; açıklaması ve fiyatı ürün sayfasında durur.
-            </motion.p>
+            <motion.div className="hero-brand" variants={heroItem}>
+              <img src="/brand/carmen-lockup.png" alt="Carmen Antika" width="1001" height="1006" />
+            </motion.div>
             <motion.div className="cta-row" variants={heroItem}>
               <Link className="primary-cta" href="/koleksiyon">Koleksiyonu keşfet <ArrowRight size={15} /></Link>
               <Link className="outline-cta" href="/hikayemiz">Hikâyemiz</Link>
-            </motion.div>
-            <motion.div className="hero-note" variants={heroItem}>
-              <strong>01</strong>
-              <span>Antalya<br />Tekil stok, özenli teslimat</span>
             </motion.div>
           </HeroEnter>
           <div className="hero-visual" data-parallax="0.05">

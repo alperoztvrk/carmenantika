@@ -94,8 +94,7 @@ export function StoreHeader() {
             </Link>
           </nav>
           <Link href="/" className="brand-lockup" aria-label="Carmen Antika ana sayfa">
-            <span className="brand-name">Carmen Antika</span>
-            <span className="brand-sub">Antika · Antalya</span>
+            <img className="brand-logo" src="/brand/carmen-mark.png" alt="Carmen Antika" width="74" height="74" />
           </Link>
           <div className="header-actions">
             <button className={`icon-button ${searchOpen ? "active" : ""}`} type="button" aria-label="Arama" aria-expanded={searchOpen} onClick={() => { setMobileOpen(false); setSearchOpen((open) => !open); }}>

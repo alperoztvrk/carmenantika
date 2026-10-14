@@ -5,6 +5,8 @@ import { HomeReviewForm, ReviewTicker } from "@/components/HomeReviews";
 import { HeroEnter, heroItem } from "@/components/PageMotion";
 import { StoreLayout } from "@/components/StoreLayout";
 
+const ease = [0.22, 0.8, 0.24, 1] as const;
+
 export default function Home() {
   return (
     <StoreLayout>
@@ -13,7 +15,7 @@ export default function Home() {
         <div className="container-carmen hero-grid">
           <HeroEnter className="hero-copy">
             <motion.div className="hero-brand" variants={heroItem}>
-              <img src="/brand/carmen-lockup.png" alt="Carmen Antika" width="1001" height="1006" />
+              <img src="/brand/carmen-lockup.png?v=3" alt="Carmen Antika" width="987" height="987" />
             </motion.div>
             <motion.h1 className="hero-title serif text-balance" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }}>
               <motion.span className="hero-line" variants={heroItem}>Geçmişten gelen,</motion.span>
@@ -24,6 +26,18 @@ export default function Home() {
               <Link className="outline-cta" href="/hikayemiz">Hikâyemiz</Link>
             </motion.div>
           </HeroEnter>
+          <div className="hero-visual" data-parallax="0.05">
+            <motion.div className="hero-photo" initial={{ y: 18 }} animate={{ y: 0 }} transition={{ duration: 0.7, delay: 0.08, ease }}>
+              <img src="/photos/hero-stall.jpg" alt="Carmen Antika vitrininden seçilmiş antika parçalar" />
+            </motion.div>
+            <motion.div className="hero-stamp" initial={{ scale: 0.92, rotate: 6 }} animate={{ scale: 1, rotate: 12 }} transition={{ duration: 0.7, delay: 0.2, ease }}>
+              <span>One of<br />a kind<br />objects</span>
+            </motion.div>
+            <motion.div className="hero-caption" initial={{ y: 12 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.16, ease }}>
+              <p>Bir ev, seçtiği parçalar kadar kendisidir.</p>
+              <small>Antalya</small>
+            </motion.div>
+          </div>
         </div>
         <ReviewTicker />
       </section>

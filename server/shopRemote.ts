@@ -13,6 +13,10 @@ export type ShopSnapshot = {
   nextOrderId: number;
   nextItemId: number;
   tokens: Record<string, string>;
+  deletedProductIds?: number[];
+  deletedProductSlugs?: string[];
+  deletedReviewIds?: number[];
+  deletedOrderIds?: number[];
 };
 
 const USER_AGENT = "carmen-antika/1.0";
@@ -230,18 +234,53 @@ function mergeById(remote: unknown[] = [], local: unknown[] = []) {
   return Array.from(map.values());
 }
 
+function mergeNumberIds(remote: number[] = [], local: number[] = []) {
+  return Array.from(new Set([...remote, ...local].filter((value) => typeof value === "number")));
+}
+
+function mergeStringIds(remote: string[] = [], local: string[] = []) {
+  return Array.from(new Set([...remote, ...local].map((value) => value.trim()).filter(Boolean)));
+}
+
+function rejectDeleted(items: unknown[], deletedIds: number[], deletedSlugs: string[] = []) {
+  const ids = new Set(deletedIds);
+  const slugs = new Set(deletedSlugs);
+  return items.filter((item) => {
+    const record = asRecord(item);
+    if (!record) return false;
+    if (typeof record.id === "number" && ids.has(record.id)) return false;
+    if (typeof record.slug === "string" && slugs.has(record.slug)) return false;
+    return true;
+  });
+}
+
 export function mergeSnapshots(remote: ShopSnapshot | null, local: ShopSnapshot): ShopSnapshot {
-  if (!remote) return local;
+  if (!remote) {
+    return {
+      ...local,
+      products: rejectDeleted(local.products, local.deletedProductIds ?? [], local.deletedProductSlugs ?? []),
+      reviews: rejectDeleted(local.reviews, local.deletedReviewIds ?? []),
+      orders: rejectDeleted(local.orders, local.deletedOrderIds ?? []),
+    };
+  }
+  const deletedProductIds = mergeNumberIds(remote.deletedProductIds, local.deletedProductIds);
+  const deletedProductSlugs = mergeStringIds(remote.deletedProductSlugs, local.deletedProductSlugs);
+  const deletedReviewIds = mergeNumberIds(remote.deletedReviewIds, local.deletedReviewIds);
+  const deletedOrderIds = mergeNumberIds(remote.deletedOrderIds, local.deletedOrderIds);
   return {
     version: 1,
     savedAt: new Date().toISOString(),
-    products: mergeById(remote.products, local.products),
-    reviews: mergeById(remote.reviews, local.reviews),
-    orders: mergeById(remote.orders, local.orders),
+    products: rejectDeleted(mergeById(remote.products, local.products), deletedProductIds, deletedProductSlugs),
+    reviews: rejectDeleted(mergeById(remote.reviews, local.reviews), deletedReviewIds),
+    orders: rejectDeleted(mergeById(remote.orders, local.orders), deletedOrderIds),
     nextReviewId: Math.max(remote.nextReviewId ?? 1, local.nextReviewId ?? 1),
     nextOrderId: Math.max(remote.nextOrderId ?? 1, local.nextOrderId ?? 1),
     nextItemId: Math.max(remote.nextItemId ?? 1, local.nextItemId ?? 1),
     tokens: { ...(remote.tokens ?? {}), ...(local.tokens ?? {}) },
+    deletedProductIds,
+    deletedProductSlugs,
+    deletedReviewIds,
+    deletedOrderIds,
   };
 }
 
@@ -250,10 +289,19 @@ export function snapshotCount(snapshot: ShopSnapshot | null) {
   return (snapshot.products?.length ?? 0) + (snapshot.reviews?.length ?? 0) + (snapshot.orders?.length ?? 0);
 }
 
+export function snapshotHasState(snapshot: ShopSnapshot | null) {
+  if (!snapshot) return false;
+  return snapshotCount(snapshot) > 0
+    || (snapshot.deletedProductIds?.length ?? 0) > 0
+    || (snapshot.deletedProductSlugs?.length ?? 0) > 0
+    || (snapshot.deletedReviewIds?.length ?? 0) > 0
+    || (snapshot.deletedOrderIds?.length ?? 0) > 0;
+}
+
 export function preparePersistSnapshot(remote: ShopSnapshot | null, local: ShopSnapshot): ShopSnapshot | null {
-  if (!remote) return snapshotCount(local) > 0 ? local : null;
+  if (!remote) return snapshotHasState(local) ? mergeSnapshots(null, local) : null;
   const merged = mergeSnapshots(remote, local);
-  return snapshotCount(merged) > 0 ? merged : null;
+  return snapshotHasState(merged) ? merged : null;
 }
 
 export function encodeShopImage(contentType: string, dataBase64: string) {
@@ -427,7 +475,7 @@ export async function loadShopBackup(): Promise<ShopSnapshot | null> {
 
 export async function saveShopBackup(snapshot: ShopSnapshot) {
   if (!persistEnabled() || backupSecret().length < 24) return;
-  if (snapshotCount(snapshot) === 0) return;
+  if (!snapshotHasState(snapshot)) return;
   let wrote = false;
   if (forgeConfigured()) {
     try {

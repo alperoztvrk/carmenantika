@@ -12,6 +12,7 @@ const persistEnabled = process.env.NODE_ENV !== "test";
 export type StoredOrder = Order & { items: OrderItem[] };
 
 const memoryOrders: StoredOrder[] = [];
+const deletedIds = new Set<number>();
 const tokenIndex = new Map<string, string>();
 let nextOrderId = 1;
 let nextItemId = 1;
@@ -31,6 +32,7 @@ function persist(remote = true) {
         nextItemId,
         tokens: Object.fromEntries(tokenIndex),
         orders: memoryOrders,
+        deletedIds: Array.from(deletedIds),
       }));
     } catch (error) {
       console.error("[orders] persist failed", error instanceof Error ? error.message : error);
@@ -49,12 +51,15 @@ function restore() {
       nextItemId?: number;
       tokens?: Record<string, string>;
       orders?: Array<StoredOrder & { createdAt: string; updatedAt: string }>;
+      deletedIds?: number[];
     };
     nextOrderId = saved.nextOrderId ?? 1;
     nextItemId = saved.nextItemId ?? 1;
+    deletedIds.clear();
+    for (const id of saved.deletedIds ?? []) deletedIds.add(id);
     tokenIndex.clear();
     for (const [token, orderNumber] of Object.entries(saved.tokens ?? {})) tokenIndex.set(token, orderNumber);
-    memoryOrders.splice(0, memoryOrders.length, ...(saved.orders ?? []).map((order) => ({
+    memoryOrders.splice(0, memoryOrders.length, ...(saved.orders ?? []).filter((order) => !deletedIds.has(order.id)).map((order) => ({
       ...order,
       createdAt: new Date(order.createdAt),
       updatedAt: new Date(order.updatedAt),
@@ -93,7 +98,9 @@ export function releaseStaleLocalOrders(now = Date.now()) {
 export function saveLocalOrder(input: InsertOrder, items: InsertOrderItem[]) {
   restore();
   const now = new Date();
-  const id = nextOrderId++;
+  let id = nextOrderId++;
+  while (deletedIds.has(id) || memoryOrders.some((entry) => entry.id === id)) id = nextOrderId++;
+  deletedIds.delete(id);
   const order: StoredOrder = {
     id,
     orderNumber: input.orderNumber,
@@ -130,6 +137,7 @@ export function deleteLocalOrder(id: number) {
   const index = memoryOrders.findIndex((entry) => entry.id === id);
   if (index < 0) return undefined;
   const [removed] = memoryOrders.splice(index, 1);
+  deletedIds.add(removed.id);
   const staleTokens: string[] = [];
   tokenIndex.forEach((orderNumber, token) => {
     if (orderNumber === removed.orderNumber || token === removed.stripeCheckoutSessionId) staleTokens.push(token);
@@ -201,7 +209,14 @@ export function exportLocalOrders() {
     nextItemId,
     tokens: Object.fromEntries(tokenIndex),
     orders: memoryOrders.map((order) => withItems(order)),
+    deletedIds: Array.from(deletedIds),
   };
+}
+
+export function replaceOrderDeletions(ids: number[] = []) {
+  deletedIds.clear();
+  for (const id of ids) deletedIds.add(id);
+  memoryOrders.splice(0, memoryOrders.length, ...memoryOrders.filter((order) => !deletedIds.has(order.id)));
 }
 
 export function importLocalOrders(input: {
@@ -227,6 +242,7 @@ export function resetOrdersForTests() {
   loaded = true;
   nextOrderId = 1;
   nextItemId = 1;
+  deletedIds.clear();
   tokenIndex.clear();
   memoryOrders.splice(0, memoryOrders.length);
 }

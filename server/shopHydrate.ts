@@ -1,6 +1,6 @@
-import { exportLocalProducts, importLocalProducts } from "./localCatalog";
-import { exportLocalOrders, importLocalOrders } from "./localOrders";
-import { exportLocalReviews, importLocalReviews } from "./localReviews";
+import { exportLocalProducts, exportProductDeletions, importLocalProducts, replaceProductDeletions } from "./localCatalog";
+import { exportLocalOrders, importLocalOrders, replaceOrderDeletions } from "./localOrders";
+import { exportLocalReviews, importLocalReviews, replaceReviewDeletions } from "./localReviews";
 import {
   bindShopBackup,
   closeShopBackups,
@@ -10,12 +10,14 @@ import {
   mergeSnapshots,
   openShopBackups,
   snapshotCount,
+  snapshotHasState,
   type ShopSnapshot,
 } from "./shopRemote";
 
 function takeSnapshot(): ShopSnapshot {
   const reviews = exportLocalReviews();
   const orders = exportLocalOrders();
+  const productDeletions = exportProductDeletions();
   return {
     version: 1,
     savedAt: new Date().toISOString(),
@@ -26,18 +28,25 @@ function takeSnapshot(): ShopSnapshot {
     nextOrderId: orders.nextOrderId,
     nextItemId: orders.nextItemId,
     tokens: orders.tokens,
+    deletedProductIds: productDeletions.ids,
+    deletedProductSlugs: productDeletions.slugs,
+    deletedReviewIds: reviews.deletedIds,
+    deletedOrderIds: orders.deletedIds,
   };
 }
 
 function applySnapshot(snapshot: ShopSnapshot) {
   importLocalProducts(snapshot.products as Parameters<typeof importLocalProducts>[0], false);
+  replaceProductDeletions(snapshot.deletedProductIds, snapshot.deletedProductSlugs);
   importLocalReviews({ nextId: snapshot.nextReviewId, reviews: snapshot.reviews as Parameters<typeof importLocalReviews>[0]["reviews"] }, false);
+  replaceReviewDeletions(snapshot.deletedReviewIds);
   importLocalOrders({
     nextOrderId: snapshot.nextOrderId,
     nextItemId: snapshot.nextItemId,
     tokens: snapshot.tokens,
     orders: snapshot.orders as Parameters<typeof importLocalOrders>[0]["orders"],
   }, false);
+  replaceOrderDeletions(snapshot.deletedOrderIds);
 }
 
 export async function hydrateShop() {
@@ -47,7 +56,7 @@ export async function hydrateShop() {
     const local = takeSnapshot();
     const remote = await loadShopBackup();
     const merged = mergeSnapshots(remote, local);
-    if (snapshotCount(merged) > 0) applySnapshot(merged);
+    if (snapshotHasState(merged)) applySnapshot(merged);
     const grew = snapshotCount(merged) > snapshotCount(remote);
     if (!remote && snapshotCount(local) > 0) {
       openShopBackups();

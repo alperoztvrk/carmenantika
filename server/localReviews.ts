@@ -15,6 +15,7 @@ export type ShopReview = {
 const persistPath = dataFile("carmen-guest-reviews.json");
 const persistEnabled = process.env.NODE_ENV !== "test";
 const memory: ShopReview[] = [];
+const deletedIds = new Set<number>();
 let nextId = 1;
 let loaded = false;
 
@@ -26,6 +27,7 @@ function persist(remote = true) {
         savedAt: new Date().toISOString(),
         nextId,
         reviews: memory,
+        deletedIds: Array.from(deletedIds),
       }));
     } catch (error) {
       console.error("[reviews] persist failed", error instanceof Error ? error.message : error);
@@ -43,9 +45,12 @@ function restore() {
     const saved = JSON.parse(fs.readFileSync(persistPath, "utf8")) as {
       nextId?: number;
       reviews?: Array<ShopReview & { createdAt: string }>;
+      deletedIds?: number[];
     };
     nextId = saved.nextId ?? 1;
-    memory.splice(0, memory.length, ...(saved.reviews ?? []).map((review) => ({
+    deletedIds.clear();
+    for (const id of saved.deletedIds ?? []) deletedIds.add(id);
+    memory.splice(0, memory.length, ...(saved.reviews ?? []).filter((review) => !deletedIds.has(review.id)).map((review) => ({
       ...review,
       createdAt: new Date(review.createdAt),
     })));
@@ -69,6 +74,7 @@ export function deleteReview(id: number) {
   const index = memory.findIndex((review) => review.id === id);
   if (index < 0) return false;
   memory.splice(index, 1);
+  deletedIds.add(id);
   persist();
   return true;
 }
@@ -76,7 +82,8 @@ export function deleteReview(id: number) {
 export function createReview(input: { firstName: string; lastName: string; rating: number; body: string }) {
   restore();
   let id = Date.now();
-  while (memory.some((item) => item.id === id)) id += 1;
+  while (memory.some((item) => item.id === id) || deletedIds.has(id)) id += 1;
+  deletedIds.delete(id);
   const review: ShopReview = {
     id,
     firstName: input.firstName,
@@ -94,6 +101,7 @@ export function createReview(input: { firstName: string; lastName: string; ratin
 export function resetReviewsForTests() {
   loaded = true;
   nextId = 1;
+  deletedIds.clear();
   memory.splice(0, memory.length);
 }
 
@@ -102,7 +110,14 @@ export function exportLocalReviews() {
   return {
     nextId,
     reviews: memory.map((review) => ({ ...review })),
+    deletedIds: Array.from(deletedIds),
   };
+}
+
+export function replaceReviewDeletions(ids: number[] = []) {
+  deletedIds.clear();
+  for (const id of ids) deletedIds.add(id);
+  memory.splice(0, memory.length, ...memory.filter((review) => !deletedIds.has(review.id)));
 }
 
 export function importLocalReviews(input: { nextId?: number; reviews?: ShopReview[] }, remote = false) {

@@ -78,6 +78,30 @@ describe("shop backup", () => {
     expect(extractRentryPayload(`<article><p>${parts[1].slice(0, 12)}</p><p>${parts[1].slice(12)}</p></article>`)).toBe(parts[1]);
   });
 
+  it("does not revive a product or review after it was deleted", () => {
+    const remote: ShopSnapshot = {
+      ...snapshot,
+      products: [
+        { id: 1, slug: "cam-vazo", name: "Cam Vazo" },
+        { id: 2, slug: "radyo", name: "Radyo" },
+      ],
+      reviews: [{ id: 9, body: "Paketleme çok iyi" }, { id: 10, body: "Kalmasın" }],
+    };
+    const local: ShopSnapshot = {
+      ...snapshot,
+      products: [{ id: 2, slug: "radyo", name: "Radyo" }],
+      reviews: [{ id: 9, body: "Paketleme çok iyi" }],
+      deletedProductIds: [1],
+      deletedProductSlugs: ["cam-vazo"],
+      deletedReviewIds: [10],
+    };
+    const prepared = preparePersistSnapshot(remote, local);
+    expect(prepared?.products).toEqual([{ id: 2, slug: "radyo", name: "Radyo" }]);
+    expect(prepared?.reviews).toEqual([{ id: 9, body: "Paketleme çok iyi" }]);
+    expect(prepared?.deletedProductIds).toEqual([1]);
+    expect(prepared?.deletedReviewIds).toEqual([10]);
+  });
+
   it("keeps the first product and reviews when a second instance only has the new product", () => {
     const remote: ShopSnapshot = {
       ...snapshot,

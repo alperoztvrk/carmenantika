@@ -61,5 +61,10 @@ describe("product editor", () => {
     expect(updated?.category).toBe("Cam");
     expect(updated?.imageUrls).toEqual(["/photos/radio.jpg"]);
     expect(findLocalProductById(created!.id)?.gallery).toBe(JSON.stringify(["/photos/radio.jpg"]));
+
+    await admin.product.adminDelete({ id: created!.id });
+    expect(findLocalProductById(created!.id)).toBeUndefined();
+    const afterDelete = await caller(null).product.list();
+    expect(afterDelete.some((item) => item.id === created?.id)).toBe(false);
   });
 });

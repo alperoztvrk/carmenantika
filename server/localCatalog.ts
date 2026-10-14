@@ -16,6 +16,8 @@ export const DUMMY_PRODUCT_SLUGS = new Set([
 ]);
 
 const memoryProducts: Product[] = [];
+const deletedIds = new Set<number>();
+const deletedSlugs = new Set<string>();
 const persistPath = dataFile("carmen-catalog.json");
 const persistEnabled = process.env.NODE_ENV !== "test";
 let catalogLoaded = false;
@@ -41,6 +43,8 @@ function persistCatalog(remote = true) {
       fs.writeFileSync(persistPath, JSON.stringify({
         savedAt: new Date().toISOString(),
         products: memoryProducts,
+        deletedIds: Array.from(deletedIds),
+        deletedSlugs: Array.from(deletedSlugs),
       }));
     } catch (error) {
       console.error("[catalog] persist failed", error instanceof Error ? error.message : error);
@@ -56,9 +60,15 @@ function restoreCatalog() {
     if (!fs.existsSync(persistPath)) return;
     const saved = JSON.parse(fs.readFileSync(persistPath, "utf8")) as {
       products?: Array<Product & { createdAt: string; updatedAt: string }>;
+      deletedIds?: number[];
+      deletedSlugs?: string[];
     };
+    deletedIds.clear();
+    deletedSlugs.clear();
+    for (const id of saved.deletedIds ?? []) deletedIds.add(id);
+    for (const slug of saved.deletedSlugs ?? []) deletedSlugs.add(slug);
     if (!Array.isArray(saved.products)) return;
-    memoryProducts.splice(0, memoryProducts.length, ...saved.products.filter((product) => !isDummyProduct(product)).map(revive));
+    memoryProducts.splice(0, memoryProducts.length, ...saved.products.filter((product) => !isDummyProduct(product) && !deletedIds.has(product.id) && !deletedSlugs.has(product.slug ?? "")).map(revive));
   } catch (error) {
     console.error("[catalog] restore failed", error instanceof Error ? error.message : error);
   }
@@ -75,6 +85,19 @@ export function readLocalProducts(includeUnavailable = false) {
 export function exportLocalProducts() {
   restoreCatalog();
   return memoryProducts.map((product) => ({ ...product }));
+}
+
+export function exportProductDeletions() {
+  restoreCatalog();
+  return { ids: Array.from(deletedIds), slugs: Array.from(deletedSlugs) };
+}
+
+export function replaceProductDeletions(ids: number[] = [], slugs: string[] = []) {
+  deletedIds.clear();
+  deletedSlugs.clear();
+  for (const id of ids) deletedIds.add(id);
+  for (const slug of slugs) deletedSlugs.add(slug);
+  memoryProducts.splice(0, memoryProducts.length, ...memoryProducts.filter((product) => !deletedIds.has(product.id) && !deletedSlugs.has(product.slug)));
 }
 
 export function importLocalProducts(products: Product[], remote = false) {
@@ -94,7 +117,9 @@ export function findLocalProductById(id: number) {
 export function saveLocalProduct(input: InsertProduct & { id?: number }) {
   const now = new Date();
   let nextId = input.id ?? Date.now();
-  while (memoryProducts.some((item) => item.id === nextId)) nextId += 1;
+  while (memoryProducts.some((item) => item.id === nextId) || deletedIds.has(nextId)) nextId += 1;
+  deletedIds.delete(nextId);
+  deletedSlugs.delete(input.slug);
   const product: Product = {
     id: nextId,
     slug: input.slug,
@@ -133,12 +158,16 @@ export function removeLocalProduct(id: number) {
   const index = memoryProducts.findIndex((product) => product.id === id);
   if (index < 0) return undefined;
   const [removed] = memoryProducts.splice(index, 1);
+  deletedIds.add(removed.id);
+  if (removed.slug) deletedSlugs.add(removed.slug);
   persistCatalog();
   return removed;
 }
 
 export function resetCatalogForTests() {
   catalogLoaded = true;
+  deletedIds.clear();
+  deletedSlugs.clear();
   memoryProducts.splice(0, memoryProducts.length);
 }
 

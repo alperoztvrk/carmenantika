@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowRight, Check, Heart, ShieldCheck, ShoppingBag, Truck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Heart, ShieldCheck, ShoppingBag, Truck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { parseGallery } from "@shared/productImages";
 import { useCart } from "@/contexts/CartContext";
@@ -16,6 +16,7 @@ export default function ProductDetail({ params }: { params: { slug?: string } })
   const { addItem, hasItem } = useCart();
   const [saved, setSaved] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     if (!product?.id) return;
     setActiveImage(0);
@@ -31,7 +32,14 @@ export default function ProductDetail({ params }: { params: { slug?: string } })
   if (error || !product) return <StoreLayout><div className="detail-state"><h1>Bu parça yerini bulmuş olabilir.</h1><p>Aradığın ürün artık koleksiyonda değil.</p><Link href="/#koleksiyon" className="text-link">Koleksiyona dön <ArrowRight size={15} /></Link></div></StoreLayout>;
 
   const images = product.imageUrls?.length ? product.imageUrls : parseGallery(product.gallery, product.imageUrl);
-  const currentImage = images[Math.min(activeImage, Math.max(images.length - 1, 0))] || product.imageUrl;
+  const imageCount = images.length;
+  const currentIndex = imageCount ? Math.min(activeImage, imageCount - 1) : 0;
+  const currentImage = images[currentIndex] || product.imageUrl;
+  const showSlider = imageCount > 1;
+  const goImage = (direction: number) => {
+    if (!showSlider) return;
+    setActiveImage((index) => (index + direction + imageCount) % imageCount);
+  };
   const cartProduct = { id: product.id, slug: product.slug, name: product.name, priceCents: product.priceCents, imageUrl: currentImage || product.imageUrl, shortDescription: product.description };
   const selected = hasItem(product.id);
   const toggleSaved = () => {
@@ -54,14 +62,52 @@ export default function ProductDetail({ params }: { params: { slug?: string } })
         </div>
         <section className="detail-layout container-carmen">
           <div className="detail-gallery reveal-on-scroll" data-reveal>
-            <div className="detail-image-wrap"><StoreImage src={currentImage} alt={product.name} /></div>
-            {images.length > 1 && (
+            <div
+              className={`detail-stage${showSlider ? " is-slider" : ""}`}
+              tabIndex={showSlider ? 0 : undefined}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowLeft") { event.preventDefault(); goImage(-1); }
+                if (event.key === "ArrowRight") { event.preventDefault(); goImage(1); }
+              }}
+            >
+              <div
+                className="detail-image-wrap"
+                onPointerDown={(event) => {
+                  if (!showSlider || (event.pointerType === "mouse" && event.button !== 0)) return;
+                  swipe.current = { x: event.clientX, y: event.clientY };
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                }}
+                onPointerUp={(event) => {
+                  const start = swipe.current;
+                  swipe.current = null;
+                  if (!start || !showSlider) return;
+                  const dx = event.clientX - start.x;
+                  const dy = event.clientY - start.y;
+                  if (Math.abs(dx) < 36 || Math.abs(dx) < Math.abs(dy) * 1.15) return;
+                  goImage(dx < 0 ? 1 : -1);
+                }}
+                onPointerCancel={() => { swipe.current = null; }}
+              >
+                <StoreImage src={currentImage} alt={product.name} />
+              </div>
+              {showSlider && (
+                <>
+                  <button className="detail-nav prev" type="button" aria-label="Önceki fotoğraf" onClick={() => goImage(-1)}>
+                    <ChevronLeft size={22} strokeWidth={1.7} />
+                  </button>
+                  <button className="detail-nav next" type="button" aria-label="Sonraki fotoğraf" onClick={() => goImage(1)}>
+                    <ChevronRight size={22} strokeWidth={1.7} />
+                  </button>
+                </>
+              )}
+            </div>
+            {showSlider && (
               <div className="detail-thumbs">
                 {images.map((url, index) => (
                   <button
                     key={`${url}-${index}`}
                     type="button"
-                    className={index === activeImage ? "active" : ""}
+                    className={index === currentIndex ? "active" : ""}
                     aria-label={`Görsel ${index + 1}`}
                     onClick={() => setActiveImage(index)}
                   >

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { packGallery, parseGallery } from "@shared/productImages";
 import { storageGetSignedUrl, storagePutStable } from "./storage";
 
 export type ShopSnapshot = {
@@ -24,9 +25,12 @@ let backupsOpen = false;
 let queuedWhileClosed = false;
 let lastBackup: { savedAt: string; products: number; reviews: number; orders: number } | null = null;
 let lastBackupFailed = false;
+let recover: ((snapshot: ShopSnapshot) => void) | null = null;
+const imageCache = new Map<string, { type: string; bytes: Buffer }>();
 
-export function bindShopBackup(fn: () => ShopSnapshot) {
+export function bindShopBackup(fn: () => ShopSnapshot, apply?: (snapshot: ShopSnapshot) => void) {
   capture = fn;
+  recover = apply ?? null;
 }
 
 function persistEnabled() {
@@ -169,6 +173,8 @@ export function extractRentryPayload(html: string) {
   if (packed) return packed[0];
   const single = text.match(/C1\.[A-Za-z0-9+/=]+/);
   if (single) return single[0];
+  const image = text.match(/I1\.[A-Za-z0-9._+-]+\.[A-Za-z0-9+/=]+/);
+  if (image) return image[0];
   const runs = text.match(/[A-Za-z0-9+/=]{32,}/g) ?? [];
   return runs.sort((left, right) => right.length - left.length)[0] ?? text;
 }
@@ -189,6 +195,13 @@ export function parseRentryMain(payload: string) {
   return { count: Number(match[1]), first: match[2] };
 }
 
+export function backupWritePlan(slug: string, parts: string[]) {
+  if (parts.length <= 1) return [{ slug, text: parts[0] ?? "" }];
+  const writes = parts.slice(1).map((text, index) => ({ slug: `${slug}${index + 1}`, text }));
+  writes.push({ slug, text: `C1P.${parts.length}.${parts[0]}` });
+  return writes;
+}
+
 async function readRemote(slug: string) {
   const response = await fetch(`${RENTRY}/${slug}`, {
     headers: { "user-agent": USER_AGENT, accept: "text/html" },
@@ -196,7 +209,7 @@ async function readRemote(slug: string) {
   });
   if (!response.ok) return null;
   const html = await response.text();
-  if (/does not exist|not found/i.test(html) && !html.includes("C1.") && !html.includes("C1P.")) return null;
+  if (/does not exist|not found/i.test(html) && !html.includes("C1.") && !html.includes("C1P.") && !html.includes("I1.")) return null;
   return extractRentryPayload(html);
 }
 
@@ -211,7 +224,7 @@ function mergeById(remote: unknown[] = [], local: unknown[] = []) {
     if (!record) continue;
     const id = record.id;
     const slug = record.slug;
-    const key = typeof id === "number" ? `id:${id}` : typeof slug === "string" && slug ? `slug:${slug}` : `row:${map.size}`;
+    const key = typeof slug === "string" && slug ? `slug:${slug}` : typeof id === "number" ? `id:${id}` : `row:${map.size}`;
     map.set(key, item);
   }
   return Array.from(map.values());
@@ -230,6 +243,36 @@ export function mergeSnapshots(remote: ShopSnapshot | null, local: ShopSnapshot)
     nextItemId: Math.max(remote.nextItemId ?? 1, local.nextItemId ?? 1),
     tokens: { ...(remote.tokens ?? {}), ...(local.tokens ?? {}) },
   };
+}
+
+export function snapshotCount(snapshot: ShopSnapshot | null) {
+  if (!snapshot) return 0;
+  return (snapshot.products?.length ?? 0) + (snapshot.reviews?.length ?? 0) + (snapshot.orders?.length ?? 0);
+}
+
+export function preparePersistSnapshot(remote: ShopSnapshot | null, local: ShopSnapshot): ShopSnapshot | null {
+  if (!remote) return snapshotCount(local) > 0 ? local : null;
+  const merged = mergeSnapshots(remote, local);
+  return snapshotCount(merged) > 0 ? merged : null;
+}
+
+export function encodeShopImage(contentType: string, dataBase64: string) {
+  const safe = contentType.toLowerCase().replace(/[^a-z0-9.+-]+/g, "_").replace(/_+/g, "_");
+  return `I1.${safe}.${dataBase64.replace(/\s+/g, "")}`;
+}
+
+export function decodeShopImage(payload: string) {
+  const match = payload.match(/^I1\.([^.\s]+)\.([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  return { type: match[1].replace("_", "/"), dataBase64: match[2] };
+}
+
+export function shopImageId(dataBase64: string) {
+  return crypto.createHash("sha256").update(dataBase64).digest("hex").slice(0, 12);
+}
+
+export function shopImageUrl(id: string) {
+  return `/api/shop-image/${id}`;
 }
 
 function forgeConfigured() {
@@ -303,16 +346,76 @@ async function writeRentry(slug: string, editCode: string, text: string) {
 async function saveRentryBackup(snapshot: ShopSnapshot) {
   const { slug, editCode } = backupIds();
   const parts = splitBackupPayload(encryptSnapshot(snapshot));
-  if (parts.length === 1) {
-    await writeRentry(slug, editCode, parts[0]);
-    console.log("[shop] yedek kaydedildi");
-    return;
+  const plan = backupWritePlan(slug, parts);
+  for (const step of plan) {
+    await writeRentry(step.slug, editCode, step.text);
   }
-  await writeRentry(slug, editCode, `C1P.${parts.length}.${parts[0]}`);
-  for (let index = 1; index < parts.length; index += 1) {
-    await writeRentry(`${slug}${index}`, editCode, parts[index]);
+  console.log(parts.length > 1 ? `[shop] yedek kaydedildi · ${parts.length} parça` : "[shop] yedek kaydedildi");
+}
+
+function imageSlug(id: string) {
+  return `${backupIds().slug}i${id}`;
+}
+
+export async function putShopImage(dataUrl: string) {
+  if (dataUrl.startsWith("/api/shop-image/") || dataUrl.startsWith("/shop-image/")) {
+    const id = dataUrl.split("/").pop() ?? "";
+    return { id, url: shopImageUrl(id) };
   }
-  console.log(`[shop] yedek kaydedildi · ${parts.length} parça`);
+  if (!dataUrl.startsWith("data:")) return { id: "", url: dataUrl };
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/i);
+  if (!match) return { id: "", url: dataUrl };
+  const type = match[1].toLowerCase();
+  const dataBase64 = match[2].replace(/\s+/g, "");
+  const id = shopImageId(dataBase64);
+  if (!persistEnabled() || !backupKeyReady()) return { id, url: dataUrl };
+  const packed = encodeShopImage(type, dataBase64);
+  if (packed.length > RENTRY_PART) return { id, url: dataUrl };
+  await writeRentry(imageSlug(id), backupIds().editCode, packed);
+  imageCache.set(id, { type, bytes: Buffer.from(dataBase64, "base64") });
+  return { id, url: shopImageUrl(id) };
+}
+
+export async function getShopImage(id: string) {
+  const cached = imageCache.get(id);
+  if (cached) return cached;
+  const payload = await readRemote(imageSlug(id));
+  if (!payload) return null;
+  const decoded = decodeShopImage(payload);
+  if (!decoded) return null;
+  const result = { type: decoded.type, bytes: Buffer.from(decoded.dataBase64, "base64") };
+  imageCache.set(id, result);
+  return result;
+}
+
+async function offloadUrl(url: string) {
+  if (!url.startsWith("data:")) return url;
+  try {
+    return (await putShopImage(url)).url;
+  } catch (error) {
+    console.error("[shop] görsel ayrılamadı", error instanceof Error ? error.message : error);
+    return url;
+  }
+}
+
+async function offloadSnapshotImages(snapshot: ShopSnapshot): Promise<ShopSnapshot> {
+  const products: unknown[] = [];
+  for (const product of snapshot.products) {
+    const record = asRecord(product);
+    if (!record) {
+      products.push(product);
+      continue;
+    }
+    const gallery = typeof record.gallery === "string" ? record.gallery : null;
+    const imageUrl = typeof record.imageUrl === "string" ? record.imageUrl : null;
+    const next: string[] = [];
+    for (const url of parseGallery(gallery, imageUrl)) {
+      next.push(await offloadUrl(url));
+    }
+    const packed = packGallery(next);
+    products.push({ ...record, imageUrl: packed.imageUrl, gallery: packed.gallery });
+  }
+  return { ...snapshot, products };
 }
 
 export async function loadShopBackup(): Promise<ShopSnapshot | null> {
@@ -324,6 +427,7 @@ export async function loadShopBackup(): Promise<ShopSnapshot | null> {
 
 export async function saveShopBackup(snapshot: ShopSnapshot) {
   if (!persistEnabled() || backupSecret().length < 24) return;
+  if (snapshotCount(snapshot) === 0) return;
   let wrote = false;
   if (forgeConfigured()) {
     try {
@@ -361,18 +465,39 @@ export function openShopBackups() {
   }
 }
 
+async function persistMerged() {
+  if (!capture) return;
+  if (!backupKeyReady()) {
+    lastBackupFailed = true;
+    console.error("[shop] yedek anahtarı yok");
+    return;
+  }
+  const remote = await loadShopBackup();
+  const local = capture();
+  const prepared = preparePersistSnapshot(remote, local);
+  if (!prepared) return;
+  const stored = await offloadSnapshotImages(prepared);
+  recover?.(stored);
+  await saveShopBackup(stored);
+}
+
+function queuePersist() {
+  pending = pending
+    .then(persistMerged)
+    .catch((error) => {
+      lastBackupFailed = true;
+      console.error("[shop] yedek yazılamadı", error instanceof Error ? error.message : error);
+    });
+  return pending;
+}
+
 export function enqueueShopBackup() {
   if (!persistEnabled() || !capture) return;
   if (!backupsOpen) {
     queuedWhileClosed = true;
     return;
   }
-  const snapshot = capture();
-  pending = pending
-    .then(() => saveShopBackup(snapshot))
-    .catch((error) => {
-      console.error("[shop] yedek yazılamadı", error instanceof Error ? error.message : error);
-    });
+  void queuePersist();
 }
 
 export function flushShopBackup() {
@@ -381,24 +506,8 @@ export function flushShopBackup() {
 
 export async function persistShopNow() {
   if (!persistEnabled()) return;
-  if (!backupKeyReady()) {
-    lastBackupFailed = true;
-    console.error("[shop] yedek anahtarı yok");
-    return;
-  }
-  if (!capture) {
-    lastBackupFailed = true;
-    console.error("[shop] yedek henüz hazır değil");
-    return;
-  }
   backupsOpen = true;
-  const snapshot = capture();
-  try {
-    await saveShopBackup(snapshot);
-  } catch (error) {
-    lastBackupFailed = true;
-    console.error("[shop] yedek yazılamadı", error instanceof Error ? error.message : error);
-  }
+  await queuePersist();
 }
 
 export function backupKeyReady() {

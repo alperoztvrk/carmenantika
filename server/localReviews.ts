@@ -61,7 +61,6 @@ export function listReviews() {
   return memory
     .slice()
     .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-    .slice(0, 40)
     .map((review) => ({ ...review }));
 }
 
@@ -76,17 +75,18 @@ export function deleteReview(id: number) {
 
 export function createReview(input: { firstName: string; lastName: string; rating: number; body: string }) {
   restore();
+  let id = Date.now();
+  while (memory.some((item) => item.id === id)) id += 1;
   const review: ShopReview = {
-    id: nextId,
+    id,
     firstName: input.firstName,
     lastName: input.lastName,
     rating: input.rating,
     body: input.body,
     createdAt: new Date(),
   };
-  nextId += 1;
+  nextId = Math.max(nextId, id + 1);
   memory.unshift(review);
-  if (memory.length > 80) memory.splice(80);
   persist();
   return { ...review };
 }

@@ -8,6 +8,7 @@ import { registerIyzicoCallback } from "./iyzicoCallback";
 import { iyzicoStatusLine } from "./iyzico";
 import { assertLiveConfig } from "./liveGuard";
 import { hydrateShop } from "./shopHydrate";
+import { getShopImage } from "./shopRemote";
 import { appRouter } from "./routers";
 
 function securityHeaders(_req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -44,6 +45,25 @@ export async function createApp() {
   registerIyzicoCallback(app);
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  app.get(["/shop-image/:id", "/api/shop-image/:id"], async (req, res) => {
+    const id = String(req.params.id ?? "").replace(/[^a-f0-9]/gi, "").slice(0, 12);
+    if (id.length < 8) {
+      res.status(404).end();
+      return;
+    }
+    try {
+      const image = await getShopImage(id);
+      if (!image) {
+        res.status(404).end();
+        return;
+      }
+      res.setHeader("content-type", image.type || "image/jpeg");
+      res.setHeader("cache-control", "public, max-age=31536000, immutable");
+      res.send(image.bytes);
+    } catch {
+      res.status(404).end();
+    }
+  });
   app.use(
     "/api/trpc",
     createExpressMiddleware({

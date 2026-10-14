@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csrfFromHtml, decryptSnapshot, encryptSnapshot, extractRentryPayload, mergeSnapshots, parseRentryMain, splitBackupPayload, type ShopSnapshot } from "./shopRemote";
+import { backupWritePlan, csrfFromHtml, decodeShopImage, decryptSnapshot, encodeShopImage, encryptSnapshot, extractRentryPayload, mergeSnapshots, parseRentryMain, preparePersistSnapshot, splitBackupPayload, type ShopSnapshot } from "./shopRemote";
 import { DUMMY_PRODUCT_SLUGS, importLocalProducts, readLocalProducts, resetCatalogForTests } from "./localCatalog";
 
 const secret = "shop-backup-secret-key-24chars";
@@ -76,6 +76,37 @@ describe("shop backup", () => {
     expect(decryptSnapshot([parsed!.first, ...parts.slice(1)].join(""), secret)?.reviews).toEqual(snapshot.reviews);
     expect(extractRentryPayload(`<article><p>${main.slice(0, 20)}</p><span>${main.slice(20)}</span></article>`)).toBe(main);
     expect(extractRentryPayload(`<article><p>${parts[1].slice(0, 12)}</p><p>${parts[1].slice(12)}</p></article>`)).toBe(parts[1]);
+  });
+
+  it("keeps the first product and reviews when a second instance only has the new product", () => {
+    const remote: ShopSnapshot = {
+      ...snapshot,
+      products: [{ id: 1, slug: "cam-vazo", name: "Cam Vazo" }],
+      reviews: [{ id: 9, body: "Paketleme çok iyi" }],
+      nextReviewId: 10,
+    };
+    const local: ShopSnapshot = {
+      ...snapshot,
+      products: [{ id: 1, slug: "radyo", name: "Radyo" }],
+      reviews: [],
+      nextReviewId: 1,
+    };
+    const prepared = preparePersistSnapshot(remote, local);
+    expect(prepared?.products.map((product) => (product as { slug: string }).slug).sort()).toEqual(["cam-vazo", "radyo"]);
+    expect(prepared?.reviews).toEqual([{ id: 9, body: "Paketleme çok iyi" }]);
+    expect(preparePersistSnapshot(null, { ...snapshot, products: [], reviews: [], orders: [] })).toBeNull();
+  });
+
+  it("writes extra rentry parts before replacing the main snapshot", () => {
+    const plan = backupWritePlan("caslug", ["C1.aaa", "bbb", "ccc"]);
+    expect(plan.map((step) => step.slug)).toEqual(["caslug1", "caslug2", "caslug"]);
+    expect(plan[2]?.text.startsWith("C1P.3.C1.aaa")).toBe(true);
+  });
+
+  it("round-trips a shop image payload through wrapped html", () => {
+    const packed = encodeShopImage("image/jpeg", "abcDEF123+/=");
+    expect(decodeShopImage(packed)).toEqual({ type: "image/jpeg", dataBase64: "abcDEF123+/=" });
+    expect(extractRentryPayload(`<article><p>${packed.slice(0, 12)}</p><p>${packed.slice(12)}</p></article>`)).toBe(packed);
   });
 
   it("does not replace a catalog with an empty snapshot", () => {

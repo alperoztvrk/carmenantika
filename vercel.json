@@ -8,6 +8,7 @@
   "rewrites": [
     { "source": "/healthz", "destination": "/api/healthz" },
     { "source": "/manus-storage/:path*", "destination": "/api/manus-storage/:path*" },
+    { "source": "/shop-image/:id", "destination": "/api/shop-image/:id" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

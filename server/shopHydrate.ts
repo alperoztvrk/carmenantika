@@ -9,6 +9,7 @@ import {
   loadShopBackup,
   mergeSnapshots,
   openShopBackups,
+  snapshotCount,
   type ShopSnapshot,
 } from "./shopRemote";
 
@@ -39,14 +40,9 @@ function applySnapshot(snapshot: ShopSnapshot) {
   }, false);
 }
 
-function snapshotCount(snapshot: ShopSnapshot | null) {
-  if (!snapshot) return 0;
-  return (snapshot.products?.length ?? 0) + (snapshot.reviews?.length ?? 0) + (snapshot.orders?.length ?? 0);
-}
-
 export async function hydrateShop() {
   closeShopBackups();
-  bindShopBackup(takeSnapshot);
+  bindShopBackup(takeSnapshot, applySnapshot);
   try {
     const local = takeSnapshot();
     const remote = await loadShopBackup();

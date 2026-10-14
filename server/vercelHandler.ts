@@ -10,7 +10,7 @@ const appPromise = createApp();
 
 function requestUrl(req: IncomingMessage) {
   const raw = req.url || "/";
-  if (raw.startsWith("/api") || raw.startsWith("/healthz") || raw.startsWith("/manus-storage")) return raw;
+  if (raw.startsWith("/api") || raw.startsWith("/healthz") || raw.startsWith("/manus-storage") || raw.startsWith("/shop-image")) return raw;
   return raw.startsWith("/") ? `/api${raw}` : `/api/${raw}`;
 }
 

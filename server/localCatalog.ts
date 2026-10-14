@@ -93,7 +93,8 @@ export function findLocalProductById(id: number) {
 
 export function saveLocalProduct(input: InsertProduct & { id?: number }) {
   const now = new Date();
-  const nextId = input.id ?? Math.max(0, ...memoryProducts.map((item) => item.id)) + 1;
+  let nextId = input.id ?? Date.now();
+  while (memoryProducts.some((item) => item.id === nextId)) nextId += 1;
   const product: Product = {
     id: nextId,
     slug: input.slug,

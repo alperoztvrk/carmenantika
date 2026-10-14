@@ -30,7 +30,7 @@ import { storagePut } from "./storage";
 import { rememberLocalCheckoutToken } from "./localOrders";
 import { phonesMatch, readGuestOrderNumbers, rememberGuestOrder } from "./guestOrders";
 import { createReview, deleteReview, listReviews } from "./localReviews";
-import { backupStatus, persistShopNow } from "./shopRemote";
+import { backupStatus, persistShopNow, putShopImage } from "./shopRemote";
 import { buyerIdentityNumber, buyerIp, initializeCheckout, iyzicoConfigured, iyzicoIsSandbox, publicOrigin, retrieveCheckout } from "./iyzico";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -281,11 +281,18 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Sadece jpeg, png, webp veya gif yükle." });
         }
         const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^\.+/, "").slice(-80) || "gorsel.jpg";
+        const dataUrl = `data:${type};base64,${input.dataBase64}`;
+        try {
+          const stored = await putShopImage(dataUrl);
+          if (stored.url && !stored.url.startsWith("data:")) return { key: stored.id, url: stored.url };
+        } catch (error) {
+          console.error("[upload] görsel yedeği yazılamadı", error instanceof Error ? error.message : error);
+        }
         try {
           return await storagePut(`carmen-antika/products/${Date.now()}-${safeName}`, data, type);
         } catch (error) {
           console.error("[upload] depo yok, görsel ürüne gömüldü", error instanceof Error ? error.message : error);
-          return { key: `inline-${Date.now()}-${safeName}`, url: `data:${type};base64,${input.dataBase64}` };
+          return { key: `inline-${Date.now()}-${safeName}`, url: dataUrl };
         }
       }),
     adminCreate: adminProcedure

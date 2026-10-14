@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csrfFromHtml, decryptSnapshot, encryptSnapshot, mergeSnapshots, type ShopSnapshot } from "./shopRemote";
+import { csrfFromHtml, decryptSnapshot, encryptSnapshot, extractRentryPayload, mergeSnapshots, parseRentryMain, splitBackupPayload, type ShopSnapshot } from "./shopRemote";
 import { DUMMY_PRODUCT_SLUGS, importLocalProducts, readLocalProducts, resetCatalogForTests } from "./localCatalog";
 
 const secret = "shop-backup-secret-key-24chars";
@@ -59,6 +59,23 @@ describe("shop backup", () => {
 
   it("reads csrf from rentry html when set-cookie is missing", () => {
     expect(csrfFromHtml('<input type="hidden" name="csrfmiddlewaretoken" value="abc123">')).toBe("abc123");
+  });
+
+  it("reassembles a wrapped snapshot and split rentry parts", () => {
+    const packed = encryptSnapshot(snapshot, secret);
+    const html = `<article><div><p>${packed.slice(0, 40)}</p><p>${packed.slice(40)}</p></div></article>`;
+    expect(extractRentryPayload(html)).toBe(packed);
+    expect(decryptSnapshot(extractRentryPayload(html), secret)?.products).toEqual(snapshot.products);
+
+    const parts = splitBackupPayload(packed, 40);
+    expect(parts.length).toBeGreaterThan(1);
+    const main = `C1P.${parts.length}.${parts[0]}`;
+    const parsed = parseRentryMain(main);
+    expect(parsed?.count).toBe(parts.length);
+    expect(parsed?.first).toBe(parts[0]);
+    expect(decryptSnapshot([parsed!.first, ...parts.slice(1)].join(""), secret)?.reviews).toEqual(snapshot.reviews);
+    expect(extractRentryPayload(`<article><p>${main.slice(0, 20)}</p><span>${main.slice(20)}</span></article>`)).toBe(main);
+    expect(extractRentryPayload(`<article><p>${parts[1].slice(0, 12)}</p><p>${parts[1].slice(12)}</p></article>`)).toBe(parts[1]);
   });
 
   it("does not replace a catalog with an empty snapshot", () => {

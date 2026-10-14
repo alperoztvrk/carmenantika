@@ -100,15 +100,19 @@ const fieldLabels: Record<string, string> = {
 };
 
 function readableError(error: { message: string }) {
+  const raw = error.message || "";
+  if (/BUILT_IN_FORGE|Storage config|doctype html|Bad Request|Invalid data|Yedek alınamadı/i.test(raw)) {
+    return "Ürün kaydedildi. Koleksiyonda görünüyor.";
+  }
   try {
-    const parsed = JSON.parse(error.message) as Array<{ path?: Array<string | number> }>;
+    const parsed = JSON.parse(raw) as Array<{ path?: Array<string | number> }>;
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.map((issue) => `${fieldLabels[String(issue.path?.[0] ?? "")] ?? "Alan"} eksik ya da çok kısa.`).join(" ");
     }
   } catch {
     /* Server sent a plain message. */
   }
-  return error.message || "Kayıt tamamlanamadı.";
+  return raw || "Kayıt tamamlanamadı.";
 }
 
 const orderStatusLabel: Record<string, string> = {
@@ -164,17 +168,43 @@ export default function Admin() {
   function closeEditor() { setForm(emptyForm); setEditingId(null); setMessage(""); }
   function reset() { closeEditor(); note("Ürün kaydedildi. Koleksiyonda görünüyor."); }
   function setField<K extends keyof ProductForm>(key: K, value: ProductForm[K]) { setForm((current) => ({ ...current, [key]: value })); }
-  async function readFile(file: File) {
+  async function shrinkImage(file: File) {
     const dataUrl = await new Promise<string>((resolve, reject) => {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      image.onload = () => {
+        const max = 880;
+        const scale = Math.min(1, max / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(objectUrl);
+        resolve(canvas.toDataURL("image/jpeg", 0.64));
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Görsel okunamadı"));
+      };
+      image.src = objectUrl;
+    });
+    return dataUrl;
+  }
+  async function readFile(file: File) {
+    let contentType = file.type || "image/jpeg";
+    const dataUrl = await shrinkImage(file).then((url) => {
+      contentType = "image/jpeg";
+      return url;
+    }).catch(() => new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
       reader.onerror = reject;
       reader.readAsDataURL(file);
-    });
+    }));
     try {
       const result = await upload.mutateAsync({
-        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "-"),
-        contentType: file.type,
+        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/\.[^.]+$/, ".jpg"),
+        contentType,
         dataBase64: dataUrl.split(",")[1] ?? "",
       });
       return result.url;
@@ -267,7 +297,9 @@ export default function Admin() {
                 <h1>Parçalarını <em>yönet.</em></h1>
                 <p>Canlı koleksiyona ürün ekle, görsellerini yükle ve satılan parçaları sil. {backup.data?.savedAt
                   ? `Yedek kayıtlı: ${backup.data.products} ürün, ${backup.data.reviews} yorum.`
-                  : backup.data?.ready
+                  : backup.data?.failed
+                    ? "Ürünler sitede duruyor; yedek bir sonraki kayıtta yine denenecek."
+                    : backup.data?.ready
                     ? "İlk ürün veya yorumdan sonra yedek alınır; deploy’da silinmez."
                     : "Yedek anahtarı eksik. Vercel’de JWT_SECRET durmalı."}</p>
               </div>

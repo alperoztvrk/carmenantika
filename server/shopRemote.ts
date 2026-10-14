@@ -23,6 +23,7 @@ let pending: Promise<void> = Promise.resolve();
 let backupsOpen = false;
 let queuedWhileClosed = false;
 let lastBackup: { savedAt: string; products: number; reviews: number; orders: number } | null = null;
+let lastBackupFailed = false;
 
 export function bindShopBackup(fn: () => ShopSnapshot) {
   capture = fn;
@@ -98,6 +99,11 @@ export function csrfFromHtml(html: string) {
 export function cookiesFromResponse(response: Response) {
   const listed = response.headers.getSetCookie?.() ?? [];
   if (listed.length) return listed;
+  const found: string[] = [];
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie") found.push(value);
+  });
+  if (found.length) return found;
   const raw = response.headers.get("set-cookie");
   return raw ? [raw] : [];
 }
@@ -109,9 +115,11 @@ async function rentrySession() {
   });
   const html = await response.text();
   const setCookies = cookiesFromResponse(response);
-  const csrf = csrfFrom(setCookies) || csrfFromHtml(html);
-  if (!csrf) throw new Error("rentry csrf yok");
-  const cookie = cookieHeader(setCookies) || `csrftoken=${csrf}`;
+  const cookieToken = csrfFrom(setCookies);
+  const formToken = csrfFromHtml(html);
+  const csrf = formToken || cookieToken;
+  if (!csrf) throw new Error("rentry oturum yok");
+  const cookie = cookieHeader(setCookies) || `csrftoken=${cookieToken || csrf}`;
   return { cookie, csrf };
 }
 
@@ -125,6 +133,7 @@ async function rentryPost(path: string, fields: Record<string, string>) {
       cookie: session.cookie,
       referer: RENTRY,
       "user-agent": USER_AGENT,
+      "x-csrftoken": session.csrf,
     },
     body,
     signal: AbortSignal.timeout(10000),
@@ -146,14 +155,38 @@ function unescapeHtml(value: string) {
     .replace(/&amp;/g, "&");
 }
 
-function extractRentryPayload(html: string) {
-  const clippy = html.match(/class="clippy"[^>]*value="([^"]*)"/i) ?? html.match(/value="(C1\.[^"]*)"/);
-  if (clippy?.[1]) return unescapeHtml(clippy[1]).trim();
-  const article = html.match(/<article>([\s\S]*?)<\/article>/i);
-  if (!article) return "";
-  const text = unescapeHtml(article[1].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
-  const token = text.match(/C1\.[A-Za-z0-9+/=]+/);
-  return token?.[0] ?? text;
+function cleanExtract(value: string) {
+  return unescapeHtml(value.replace(/<[^>]+>/g, "")).replace(/\s+/g, "");
+}
+
+export function extractRentryPayload(html: string) {
+  const clippy = html.match(/class="[^"]*clippy[^"]*"[^>]*value="([^"]*)"/i) ?? html.match(/value="((?:C1P\.\d+\.)?C1\.[^"]*)"/);
+  const article = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+  const fromClippy = clippy?.[1] ? cleanExtract(clippy[1]) : "";
+  const fromArticle = article?.[1] ? cleanExtract(article[1]) : "";
+  const text = fromArticle.length >= fromClippy.length ? fromArticle : fromClippy;
+  const packed = text.match(/C1P\.\d+\.C1\.[A-Za-z0-9+/=]+/);
+  if (packed) return packed[0];
+  const single = text.match(/C1\.[A-Za-z0-9+/=]+/);
+  if (single) return single[0];
+  const runs = text.match(/[A-Za-z0-9+/=]{32,}/g) ?? [];
+  return runs.sort((left, right) => right.length - left.length)[0] ?? text;
+}
+
+const RENTRY_PART = 185000;
+
+export function splitBackupPayload(payload: string, size = RENTRY_PART) {
+  const parts: string[] = [];
+  for (let index = 0; index < payload.length; index += size) {
+    parts.push(payload.slice(index, index + size));
+  }
+  return parts.length ? parts : [payload];
+}
+
+export function parseRentryMain(payload: string) {
+  const match = payload.match(/^C1P\.(\d+)\.(C1\.[A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  return { count: Number(match[1]), first: match[2] };
 }
 
 async function readRemote(slug: string) {
@@ -163,7 +196,7 @@ async function readRemote(slug: string) {
   });
   if (!response.ok) return null;
   const html = await response.text();
-  if (/does not exist|not found/i.test(html) && !html.includes("C1.")) return null;
+  if (/does not exist|not found/i.test(html) && !html.includes("C1.") && !html.includes("C1P.")) return null;
   return extractRentryPayload(html);
 }
 
@@ -199,7 +232,12 @@ export function mergeSnapshots(remote: ShopSnapshot | null, local: ShopSnapshot)
   };
 }
 
+function forgeConfigured() {
+  return Boolean((process.env.BUILT_IN_FORGE_API_URL ?? "").trim() && (process.env.BUILT_IN_FORGE_API_KEY ?? "").trim());
+}
+
 async function loadForgeBackup() {
+  if (!forgeConfigured()) return null;
   try {
     const url = await storageGetSignedUrl(FORGE_SNAPSHOT_KEY);
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -212,8 +250,21 @@ async function loadForgeBackup() {
 }
 
 async function saveForgeBackup(snapshot: ShopSnapshot) {
+  if (!forgeConfigured()) return;
   await storagePutStable(FORGE_SNAPSHOT_KEY, encryptSnapshot(snapshot), "text/plain; charset=utf-8");
   console.log("[shop] depo yedeği kaydedildi");
+}
+
+async function assembleRentryPayload(main: string, slug: string) {
+  const header = parseRentryMain(main);
+  if (!header) return main;
+  const parts = [header.first];
+  for (let index = 1; index < header.count; index += 1) {
+    const piece = await readRemote(`${slug}${index}`);
+    if (!piece) throw new Error("yedek parça eksik");
+    parts.push(piece);
+  }
+  return parts.join("");
 }
 
 async function loadRentryBackup() {
@@ -221,32 +272,47 @@ async function loadRentryBackup() {
   try {
     const payload = await readRemote(slug);
     if (!payload) return null;
-    return decryptSnapshot(payload);
+    return decryptSnapshot(await assembleRentryPayload(payload, slug));
   } catch (error) {
     console.error("[shop] yedek okunamadı", error instanceof Error ? error.message : error);
     return null;
   }
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function writeRentry(slug: string, editCode: string, text: string) {
+  const edited = await rentryPost(`/api/edit/${slug}`, { edit_code: editCode, text });
+  if (String(edited.status) === "200") return;
+  const created = await rentryPost("/api/new", { url: slug, edit_code: editCode, text });
+  if (String(created.status) === "200") return;
+  if (String(created.status) === "429" || String(edited.status) === "429") {
+    await delay(1600);
+    const retryNew = await rentryPost("/api/new", { url: slug, edit_code: editCode, text });
+    if (String(retryNew.status) === "200") return;
+    const retryEdit = await rentryPost(`/api/edit/${slug}`, { edit_code: editCode, text });
+    if (String(retryEdit.status) === "200") return;
+  }
+  const retry = await rentryPost(`/api/edit/${slug}`, { edit_code: editCode, text });
+  if (String(retry.status) === "200") return;
+  throw new Error(created.content || edited.content || "yedek yazılamadı");
+}
+
 async function saveRentryBackup(snapshot: ShopSnapshot) {
   const { slug, editCode } = backupIds();
-  const payload = encryptSnapshot(snapshot);
-  const edited = await rentryPost(`/api/edit/${slug}`, { edit_code: editCode, text: payload });
-  if (String(edited.status) === "200") {
+  const parts = splitBackupPayload(encryptSnapshot(snapshot));
+  if (parts.length === 1) {
+    await writeRentry(slug, editCode, parts[0]);
     console.log("[shop] yedek kaydedildi");
     return;
   }
-  const created = await rentryPost("/api/new", { url: slug, edit_code: editCode, text: payload });
-  if (String(created.status) === "200") {
-    console.log("[shop] yedek oluşturuldu");
-    return;
+  await writeRentry(slug, editCode, `C1P.${parts.length}.${parts[0]}`);
+  for (let index = 1; index < parts.length; index += 1) {
+    await writeRentry(`${slug}${index}`, editCode, parts[index]);
   }
-  const retry = await rentryPost(`/api/edit/${slug}`, { edit_code: editCode, text: payload });
-  if (String(retry.status) === "200") {
-    console.log("[shop] yedek kaydedildi");
-    return;
-  }
-  throw new Error(created.content || edited.content || "yedek yazılamadı");
+  console.log(`[shop] yedek kaydedildi · ${parts.length} parça`);
 }
 
 export async function loadShopBackup(): Promise<ShopSnapshot | null> {
@@ -258,22 +324,23 @@ export async function loadShopBackup(): Promise<ShopSnapshot | null> {
 
 export async function saveShopBackup(snapshot: ShopSnapshot) {
   if (!persistEnabled() || backupSecret().length < 24) return;
-  const errors: string[] = [];
-  try {
-    await saveForgeBackup(snapshot);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[shop] depo yedeği yazılamadı", message);
-    errors.push(message);
+  let wrote = false;
+  if (forgeConfigured()) {
+    try {
+      await saveForgeBackup(snapshot);
+      wrote = true;
+    } catch (error) {
+      console.error("[shop] depo yedeği yazılamadı", error instanceof Error ? error.message : error);
+    }
   }
   try {
     await saveRentryBackup(snapshot);
+    wrote = true;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[shop] yedek yazılamadı", message);
-    errors.push(message);
+    console.error("[shop] yedek yazılamadı", error instanceof Error ? error.message : error);
   }
-  if (errors.length === 2) throw new Error(errors.join(" · "));
+  if (!wrote) throw new Error("Yedek alınamadı. Ürünü bir kez daha kaydet.");
+  lastBackupFailed = false;
   lastBackup = {
     savedAt: snapshot.savedAt,
     products: snapshot.products.length,
@@ -315,14 +382,23 @@ export function flushShopBackup() {
 export async function persistShopNow() {
   if (!persistEnabled()) return;
   if (!backupKeyReady()) {
-    throw new Error("Yedek anahtarı yok. Vercel’de JWT_SECRET en az 24 karakter olmalı.");
+    lastBackupFailed = true;
+    console.error("[shop] yedek anahtarı yok");
+    return;
   }
   if (!capture) {
-    throw new Error("Yedek henüz hazır değil. Bir dakika sonra tekrar dene.");
+    lastBackupFailed = true;
+    console.error("[shop] yedek henüz hazır değil");
+    return;
   }
   backupsOpen = true;
   const snapshot = capture();
-  await saveShopBackup(snapshot);
+  try {
+    await saveShopBackup(snapshot);
+  } catch (error) {
+    lastBackupFailed = true;
+    console.error("[shop] yedek yazılamadı", error instanceof Error ? error.message : error);
+  }
 }
 
 export function backupKeyReady() {
@@ -336,5 +412,6 @@ export function backupStatus() {
     products: lastBackup?.products ?? 0,
     reviews: lastBackup?.reviews ?? 0,
     orders: lastBackup?.orders ?? 0,
+    failed: lastBackupFailed,
   };
 }

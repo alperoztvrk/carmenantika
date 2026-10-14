@@ -281,8 +281,12 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Sadece jpeg, png, webp veya gif yükle." });
         }
         const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^\.+/, "").slice(-80) || "gorsel.jpg";
-        const result = await storagePut(`carmen-antika/products/${Date.now()}-${safeName}`, data, type);
-        return result;
+        try {
+          return await storagePut(`carmen-antika/products/${Date.now()}-${safeName}`, data, type);
+        } catch (error) {
+          console.error("[upload] depo yok, görsel ürüne gömüldü", error instanceof Error ? error.message : error);
+          return { key: `inline-${Date.now()}-${safeName}`, url: `data:${type};base64,${input.dataBase64}` };
+        }
       }),
     adminCreate: adminProcedure
       .input(z.object(productFields))
@@ -532,12 +536,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Yorumunu bir cümleyle yaz." });
         }
         const review = createReview({ firstName, lastName, rating: input.rating, body });
-        try {
-          await persistShopNow();
-        } catch (error) {
-          console.error("[review] yedek yazılamadı", error instanceof Error ? error.message : error);
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Yorum alındı ama kalıcı kayıt yapılamadı. Lütfen bir kez daha dene." });
-        }
+        await persistShopNow();
         return review;
       }),
     adminList: adminProcedure.query(() => listReviews()),
